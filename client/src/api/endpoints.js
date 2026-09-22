@@ -60,6 +60,15 @@ export const adminApi = {
   submissionStatusBreakdown: () => api.get("/admin/analytics/submission-status"),
   students: () => api.get("/admin/students"),
   studentProgress: (id) => api.get(`/admin/students/${id}/progress`),
+  users: (params) => api.get("/admin/users", { params }),
+  updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
+  toggleUserStatus: (id) => api.put(`/admin/users/${id}/status`),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  enrollStudent: (data) => api.post("/admin/students/enroll", data),
+  unenrollStudent: (data) => api.post("/admin/students/unenroll", data),
+  resetSubmission: (id) => api.delete(`/admin/submissions/${id}/reset`),
+  extendDeadline: (data) => api.post("/admin/assignments/extend-deadline", data),
+  allSubmissions: (params) => api.get("/admin/submissions", { params }),
 };
 
 export const dashboardApi = {
@@ -67,6 +76,14 @@ export const dashboardApi = {
 };
 
 export const userApi = {
+  studentProfile: () => api.get("/users/student-profile"),
   updateProfile: (formData) => api.put("/users/profile", formData, { headers: { "Content-Type": "multipart/form-data" } }),
   changePassword: (data) => api.put("/users/change-password", data),
 };
+
+export const notificationApi = {
+  list: () => api.get("/notifications"),
+  markRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put("/notifications/read-all"),
+};
+

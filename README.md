@@ -207,12 +207,51 @@ Access the application in your browser at `http://localhost:5174`.
 | `POST` | `/api/assignments/:id/submissions` | Submit assignment (text/link/file) | Student |
 | `PUT` | `/api/submissions/:id/grade` | Grade submission with marks and feedback | Admin |
 | `GET` | `/api/dashboard/student` | Get student metrics & progress summary | Student |
-| `GET` | `/api/admin/stats` | Platform statistics | Admin |
-| `GET` | `/api/admin/analytics/*` | Chart analytics data | Admin |
+| `GET` | `/api/users/student-profile` | Student learning summary, transcript, & certificates | Student |
+| `PUT` | `/api/users/profile` | Update profile (name, bio, department, avatar, notifs) | Authenticated |
+| `PUT` | `/api/users/change-password` | Change password with current password verification | Authenticated |
+| `GET` | `/api/notifications` | List unread and recent user notifications | Authenticated |
+| `PUT` | `/api/notifications/:id/read` | Mark individual notification as read | Authenticated |
+| `PUT` | `/api/notifications/read-all` | Mark all user notifications as read | Authenticated |
+| `GET` | `/api/admin/stats` | Platform statistics with completion rates | Admin |
+| `GET` | `/api/admin/analytics/*` | Chart analytics data (enrollments, signups, etc.) | Admin |
+| `GET` | `/api/admin/users` | List all users with search, role, and status filters | Admin |
+| `PUT` | `/api/admin/users/:id/role` | Toggle user role between student and admin | Admin |
+| `PUT` | `/api/admin/users/:id/status` | Toggle user account activation (disable/enable) | Admin |
+| `DELETE`| `/api/admin/users/:id` | Permanently delete user account | Admin |
+| `GET` | `/api/admin/submissions` | Global submissions hub with status filters | Admin |
+| `POST` | `/api/admin/students/enroll` | Manually enroll student into a course | Admin |
+| `POST` | `/api/admin/students/unenroll` | Manually unenroll student from a course | Admin |
+| `DELETE`| `/api/admin/submissions/:id/reset`| Reset submission to allow student resubmission | Admin |
+| `POST` | `/api/admin/assignments/extend-deadline`| Extend assignment deadline for student | Admin |
 
 ---
 
-## 10. Resume Description & Skills Demonstrated
+## 10. Known Limitations & Production Transparency
+
+In accordance with strict engineering integrity and academic grading standards:
+
+1. **Email Service (Nodemailer Gmail SMTP):** Password reset and alert emails are dispatched through Gmail's SMTP service using App Passwords. If environment variables `EMAIL_USER` or `EMAIL_PASS` are absent or misconfigured in local test environments, password reset tokens are returned gracefully with console diagnostics.
+2. **Admin Registration Security:** Admin account creation is protected by a static secret code (`ADMIN_SIGNUP_CODE` in `.env`). In enterprise production deployments, this would be replaced with an organization SSO whitelist, invitation token workflow, or hierarchical permissions matrix.
+3. **Local File Storage:** Uploaded student assignment attachments and profile avatars are parsed by Multer and persisted to the local `/server/uploads` directory. For multi-instance cloud deployments (AWS ECS, GCP Cloud Run), this would integrate with an object store such as AWS S3 or Cloudflare R2 with pre-signed upload URLs.
+4. **Google OAuth Client Keys:** The Google Sign-In button interfaces with Firebase Web SDK. In local development or air-gapped environments without Firebase internet access, standard email/password authentication provides full platform coverage.
+
+---
+
+## 11. Future Improvements (Roadmap & Good-to-Have Features)
+
+The following architectural enhancements are designed for future phase expansion:
+
+- **Interactive Quiz Module:** Timed multiple-choice quizzes per course module with randomized question pools and instant automated scoring.
+- **Discussion Forums & Peer Collaboration:** Course-specific discussion threads where students can ask questions, upvote answers, and receive verified answers from instructors.
+- **Course Ratings & Student Reviews:** Star ratings (1-5) and written testimonials on public course catalog pages.
+- **Live Classroom / WebRTC Integration:** Integrated video conferencing sessions for live lectures, office hours, and screen sharing.
+- **Payment Gateway Integration:** Stripe / Razorpay checkout integration for paid courses, premium tracks, and physical certificate shipping.
+- **Automated PDF Certificate Generation:** Server-side PDF generation using Puppeteer/PDFKit with cryptographic verification QR codes.
+
+---
+
+## 12. Resume Description & Skills Demonstrated
 
 ### Resume Project Description
 > **Learning Management System (LMS) - Full Stack Web Application**  
@@ -225,3 +264,4 @@ Access the application in your browser at `http://localhost:5174`.
 - **Database Management:** MongoDB Atlas, Mongoose 9 models, relational references, indexing, automated timestamps.
 - **Authentication & Security:** JWT tokens in HTTP-only cookies, bcryptjs password hashing, Firebase Google OAuth, sanitization.
 - **CRUD Operations:** Complete course, module, assignment, and submission lifecycle workflows.
+

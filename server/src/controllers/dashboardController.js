@@ -37,7 +37,7 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
     enrolledCount: enrollments.length,
     completedCount: completedCourses.length,
     overallProgress,
-    pendingAssignments: pendingAssignments.slice(0, 10),
+    pendingAssignments,
     overdueAssignments,
     recentActivity,
     enrollments,

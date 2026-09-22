@@ -3,6 +3,7 @@ import { Moon, Sun, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 
 const RidgeMark = () => (
   <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
@@ -69,6 +70,7 @@ const Navbar = () => {
 
           {user ? (
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <Link
                 to="/profile"
                 className="text-sm font-medium text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink"
@@ -100,13 +102,16 @@ const Navbar = () => {
           )}
         </div>
 
-        <button
-          className="p-2 text-ink md:hidden dark:text-dark-ink"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          {user && <NotificationBell />}
+          <button
+            className="p-2 text-ink dark:text-dark-ink"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
 
       {mobileOpen && (

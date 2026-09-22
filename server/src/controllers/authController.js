@@ -28,12 +28,26 @@ export const register = asyncHandler(async (req, res) => {
 
   const user = await User.create({ name, email, password, role: finalRole });
 
+  // If new student, notify all admins
+  if (finalRole === "student") {
+    const admins = await User.find({ role: "admin" });
+    for (const admin of admins) {
+      createNotification({
+        user: admin._id,
+        title: "New Student Registered",
+        message: `${user.name} (${user.email}) created an account.`,
+        link: "/admin/students",
+        type: "student_registered",
+      });
+    }
+  }
+
   const token = signToken(user._id);
   sendTokenCookie(res, token);
 
   res.status(201).json({
     token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: { id: user._id, name: user.name, email: user.email, role: user.role, department: user.department },
   });
 });
 
@@ -49,18 +63,37 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid email or password." });
   }
 
+  if (user.isActive === false) {
+    return res.status(403).json({ message: "Your account has been deactivated. Please contact an administrator." });
+  }
+
+  user.lastLogin = Date.now();
+  await user.save({ validateBeforeSave: false });
+
   const token = signToken(user._id);
   sendTokenCookie(res, token);
 
   res.json({
     token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      department: user.department,
+    },
   });
 });
 
 // @route POST /api/auth/logout
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie("token");
+  const isProd = process.env.NODE_ENV === "production";
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+  });
   res.json({ message: "Logged out successfully." });
 });
 
@@ -170,6 +203,9 @@ export const googleAuth = asyncHandler(async (req, res) => {
   });
 
   if (user) {
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "Your account has been deactivated. Please contact an administrator." });
+    }
     // If user already exists, link Google ID and update avatar if not present
     let modified = false;
     if (googleId && !user.googleId) {
@@ -180,9 +216,8 @@ export const googleAuth = asyncHandler(async (req, res) => {
       user.avatar = avatar;
       modified = true;
     }
-    if (modified) {
-      await user.save({ validateBeforeSave: false });
-    }
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
   } else {
     // Create new user authenticated via Google
     user = await User.create({
@@ -192,7 +227,20 @@ export const googleAuth = asyncHandler(async (req, res) => {
       googleId: googleId || "",
       authProvider: "google",
       role: "student",
+      lastLogin: new Date(),
     });
+
+    // Notify admins of new registration
+    const admins = await User.find({ role: "admin" });
+    for (const admin of admins) {
+      createNotification({
+        user: admin._id,
+        title: "New Student Registered",
+        message: `${user.name} (${user.email}) registered via Google.`,
+        link: "/admin/students",
+        type: "student_registered",
+      });
+    }
   }
 
   const token = signToken(user._id);
@@ -206,6 +254,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
+      department: user.department,
     },
   });
 });

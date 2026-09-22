@@ -11,8 +11,14 @@ export const getCourses = asyncHandler(async (req, res) => {
   const { search, category, difficulty, sort } = req.query;
   const query = { isPublished: true };
 
-  if (search) {
-    query.$text = { $search: search };
+  if (search?.trim()) {
+    const s = search.trim();
+    query.$or = [
+      { title: { $regex: s, $options: "i" } },
+      { description: { $regex: s, $options: "i" } },
+      { category: { $regex: s, $options: "i" } },
+      { instructor: { $regex: s, $options: "i" } },
+    ];
   }
   if (category) query.category = category;
   if (difficulty) query.difficulty = difficulty;

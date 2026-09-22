@@ -12,17 +12,21 @@ export const getModulesForCourse = asyncHandler(async (req, res) => {
 // @route POST /api/courses/:courseId/modules (admin)
 export const createModule = asyncHandler(async (req, res) => {
   const { title, description, notes, resourceLinks, moduleOrder } = req.body;
-  if (!title) return res.status(400).json({ message: "Module title is required." });
+  if (!title?.trim()) return res.status(400).json({ message: "Module title is required." });
+
+  if (moduleOrder !== undefined && (isNaN(moduleOrder) || Number(moduleOrder) < 1)) {
+    return res.status(400).json({ message: "Module order must be a positive integer." });
+  }
 
   const count = await Module.countDocuments({ course: req.params.courseId });
 
   const module = await Module.create({
     course: req.params.courseId,
-    title,
-    description,
-    notes,
+    title: title.trim(),
+    description: description || "",
+    notes: notes || "",
     resourceLinks: Array.isArray(resourceLinks) ? resourceLinks : resourceLinks ? [resourceLinks] : [],
-    moduleOrder: moduleOrder ?? count + 1,
+    moduleOrder: moduleOrder ? Number(moduleOrder) : count + 1,
   });
 
   res.status(201).json({ module });
@@ -60,6 +64,9 @@ export const deleteModule = asyncHandler(async (req, res) => {
   res.json({ message: "Module deleted." });
 });
 
+import Course from "../models/Course.js";
+import { createNotification } from "./notificationController.js";
+
 // @route POST /api/modules/:id/complete  (student marks module complete)
 export const markModuleComplete = asyncHandler(async (req, res) => {
   const module = await Module.findById(req.params.id);
@@ -70,11 +77,34 @@ export const markModuleComplete = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "You are not enrolled in this course." });
   }
 
-  if (!enrollment.completedModules.some((m) => String(m) === String(module._id))) {
+  const isNewlyCompleted = !enrollment.completedModules.some((m) => String(m) === String(module._id));
+  if (isNewlyCompleted) {
     enrollment.completedModules.push(module._id);
     await enrollment.save();
   }
 
   await recalcProgress(enrollment);
-  res.json({ enrollment });
+
+  if (isNewlyCompleted) {
+    const course = await Course.findById(module.course);
+    if (enrollment.progress >= 100) {
+      createNotification({
+        user: req.user._id,
+        title: "Course Completed! 🎉",
+        message: `Congratulations! You have completed all modules in "${course?.title || "your course"}". Your completion certificate is ready on your Profile.`,
+        link: "/dashboard/profile",
+        type: "course_completed",
+      });
+    } else {
+      createNotification({
+        user: req.user._id,
+        title: "Module Completed",
+        message: `You completed "${module.title}". Current progress: ${enrollment.progress}%.`,
+        link: `/dashboard/my-courses/${module.course}`,
+        type: "module_completed",
+      });
+    }
+  }
+
+  res.json({ enrollment, message: "Module marked as completed." });
 });

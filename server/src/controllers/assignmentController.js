@@ -23,21 +23,50 @@ export const getAssignmentsForCourse = asyncHandler(async (req, res) => {
   res.json({ assignments });
 });
 
+import Course from "../models/Course.js";
+import Enrollment from "../models/Enrollment.js";
+import { createNotification } from "./notificationController.js";
+
 // @route POST /api/courses/:courseId/assignments (admin)
 export const createAssignment = asyncHandler(async (req, res) => {
   const { title, description, instructions, deadline, maximumMarks } = req.body;
-  if (!title || !deadline) {
+  if (!title?.trim() || !deadline) {
     return res.status(400).json({ message: "Title and deadline are required." });
   }
 
+  const deadlineDate = new Date(deadline);
+  if (isNaN(deadlineDate.getTime())) {
+    return res.status(400).json({ message: "Invalid deadline date format." });
+  }
+
+  const marks = maximumMarks ? Number(maximumMarks) : 100;
+  if (isNaN(marks) || marks <= 0) {
+    return res.status(400).json({ message: "Maximum marks must be a positive number." });
+  }
+
+  const course = await Course.findById(req.params.courseId);
+  if (!course) return res.status(404).json({ message: "Course not found." });
+
   const assignment = await Assignment.create({
-    course: req.params.courseId,
-    title,
-    description,
-    instructions,
-    deadline,
-    maximumMarks: maximumMarks || 100,
+    course: course._id,
+    title: title.trim(),
+    description: description || "",
+    instructions: instructions || "",
+    deadline: deadlineDate,
+    maximumMarks: marks,
   });
+
+  // Notify all students currently enrolled in this course
+  const enrollments = await Enrollment.find({ course: course._id });
+  for (const enr of enrollments) {
+    createNotification({
+      user: enr.student,
+      title: `New Assignment in ${course.title}`,
+      message: `${assignment.title} has been posted. Due: ${deadlineDate.toLocaleDateString()}.`,
+      link: `/dashboard/assignments/${assignment._id}`,
+      type: "assignment_new",
+    });
+  }
 
   res.status(201).json({ assignment });
 });

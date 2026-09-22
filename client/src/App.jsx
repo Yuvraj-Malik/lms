@@ -1,5 +1,15 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { BookOpen, LayoutDashboard, ClipboardList, TrendingUp, BookOpenCheck, Users } from "lucide-react";
+import { 
+  BookOpen, 
+  LayoutDashboard, 
+  ClipboardList, 
+  TrendingUp, 
+  BookOpenCheck, 
+  Users, 
+  Settings, 
+  FileCheck2, 
+  User 
+} from "lucide-react";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
@@ -25,6 +35,7 @@ import CourseModules from "./pages/student/CourseModules.jsx";
 import StudentAssignments from "./pages/student/StudentAssignments.jsx";
 import AssignmentDetail from "./pages/student/AssignmentDetail.jsx";
 import Progress from "./pages/student/Progress.jsx";
+import StudentSettings from "./pages/student/StudentSettings.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ManageCourses from "./pages/admin/ManageCourses.jsx";
@@ -34,18 +45,24 @@ import ManageAssignments from "./pages/admin/ManageAssignments.jsx";
 import ViewSubmissions from "./pages/admin/ViewSubmissions.jsx";
 import ManageStudents from "./pages/admin/ManageStudents.jsx";
 import StudentProgress from "./pages/admin/StudentProgress.jsx";
+import AdminSubmissions from "./pages/admin/AdminSubmissions.jsx";
+import AdminSettings from "./pages/admin/AdminSettings.jsx";
 
 const studentLinks = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/dashboard/my-courses", label: "My Courses", icon: BookOpen },
   { to: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
   { to: "/dashboard/progress", label: "Progress", icon: TrendingUp },
+  { to: "/dashboard/profile", label: "Profile", icon: User },
+  { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 const adminLinks = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/admin/courses", label: "Courses", icon: BookOpenCheck },
   { to: "/admin/students", label: "Students", icon: Users },
+  { to: "/admin/submissions", label: "Submissions", icon: FileCheck2 },
+  { to: "/admin/settings", label: "Users & Settings", icon: Settings },
 ];
 
 const Layout = ({ children }) => (
@@ -87,6 +104,8 @@ function App() {
                   <Route path="/dashboard/assignments" element={<StudentAssignments />} />
                   <Route path="/dashboard/assignments/:id" element={<AssignmentDetail />} />
                   <Route path="/dashboard/progress" element={<Progress />} />
+                  <Route path="/dashboard/profile" element={<Profile />} />
+                  <Route path="/dashboard/settings" element={<StudentSettings />} />
                 </Route>
               </Route>
 
@@ -100,8 +119,10 @@ function App() {
                   <Route path="/admin/courses/:courseId/modules" element={<ManageModules />} />
                   <Route path="/admin/courses/:courseId/assignments" element={<ManageAssignments />} />
                   <Route path="/admin/assignments/:assignmentId/submissions" element={<ViewSubmissions />} />
+                  <Route path="/admin/submissions" element={<AdminSubmissions />} />
                   <Route path="/admin/students" element={<ManageStudents />} />
                   <Route path="/admin/students/:id" element={<StudentProgress />} />
+                  <Route path="/admin/settings" element={<AdminSettings />} />
                 </Route>
               </Route>
 
