@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search } from "lucide-react";
-import { courseApi } from "../../api/endpoints.js";
+import { Search, CheckCircle2 } from "lucide-react";
+import { courseApi, enrollmentApi } from "../../api/endpoints.js";
 import { Card, Badge, Select, Spinner, EmptyState } from "../../components/ui.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const difficultyTone = { Beginner: "pine", Intermediate: "amber", Advanced: "clay" };
 
 const Courses = () => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [enrolledIds, setEnrolledIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -18,6 +21,13 @@ const Courses = () => {
   useEffect(() => {
     courseApi.categories().then(({ data }) => setCategories(data.categories));
   }, []);
+
+  useEffect(() => {
+    if (user?.role !== "student") return;
+    enrollmentApi.my().then(({ data }) => {
+      setEnrolledIds(new Set(data.enrollments.map((e) => e.course._id)));
+    });
+  }, [user]);
 
   const fetchCourses = useCallback(async () => {
     setLoading(true);
@@ -91,7 +101,12 @@ const Courses = () => {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((c) => (
               <Link key={c._id} to={`/courses/${c._id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
+                <Card className="relative h-full transition-shadow hover:shadow-md">
+                  {enrolledIds.has(c._id) && (
+                    <span className="absolute -top-2.5 right-4 inline-flex items-center gap-1 rounded-full bg-pine px-2.5 py-1 text-xs font-medium text-white shadow-sm dark:bg-pine-light dark:text-pine-dark">
+                      <CheckCircle2 size={12} /> Enrolled
+                    </span>
+                  )}
                   <div className="flex items-center justify-between">
                     <Badge tone="pine">{c.category}</Badge>
                     <Badge tone={difficultyTone[c.difficulty]}>{c.difficulty}</Badge>

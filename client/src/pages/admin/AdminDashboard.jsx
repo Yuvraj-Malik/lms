@@ -60,6 +60,13 @@ const AdminDashboard = () => {
 
   const gridColor = dark ? "#262d36" : "#e1ddd3";
   const textColor = dark ? "#9aa3ad" : "#4b5568";
+  const tooltipStyle = {
+    fontSize: 12,
+    borderRadius: 8,
+    backgroundColor: dark ? "#171d24" : "#ffffff",
+    borderColor: dark ? "#262d36" : "#e1ddd3",
+    color: dark ? "#e7e7e2" : "#1c2430",
+  };
 
   if (loading) {
     return (
@@ -99,7 +106,7 @@ const AdminDashboard = () => {
                   height={50}
                 />
                 <YAxis tick={{ fontSize: 11, fill: textColor }} allowDecimals={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="count" fill="var(--color-pine)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -123,7 +130,7 @@ const AdminDashboard = () => {
                   height={50}
                 />
                 <YAxis tick={{ fontSize: 11, fill: textColor }} domain={[0, 100]} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="avgProgress" fill="var(--color-amber)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -145,7 +152,7 @@ const AdminDashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: textColor }} />
                   <YAxis tick={{ fontSize: 11, fill: textColor }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Tooltip contentStyle={tooltipStyle} />
                   <Line type="monotone" dataKey="count" stroke="var(--color-pine)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -168,7 +175,7 @@ const AdminDashboard = () => {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Tooltip contentStyle={tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
             )}
