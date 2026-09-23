@@ -267,7 +267,7 @@ export default function Profile() {
               Complete 100% of all course modules to earn an official accredited Ridgeline Completion Certificate!
             </p>
             <div className="mt-4">
-              <Link to="/courses">
+              <Link to="/dashboard/my-courses">
                 <Button tone="pine" size="sm">
                   Explore Courses
                 </Button>
@@ -359,7 +359,7 @@ export default function Profile() {
               You haven't enrolled in any courses yet.
             </p>
             <div className="mt-4">
-              <Link to="/courses">
+              <Link to="/dashboard/my-courses">
                 <Button tone="pine" size="sm">Browse Course Catalog</Button>
               </Link>
             </div>
@@ -398,7 +398,7 @@ export default function Profile() {
                           {course.category || "General"}
                         </td>
                         <td className="px-5 py-4 text-xs text-ink-soft dark:text-dark-ink-soft">
-                          {new Date(record.createdAt).toLocaleDateString("en-US", {
+                          {new Date(record.enrollmentDate).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
@@ -423,7 +423,7 @@ export default function Profile() {
                           )}
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <Link to={`/courses/${course._id}`}>
+                          <Link to={`/dashboard/my-courses/${course._id}`}>
                             <Button size="xs" tone="secondary">
                               {isCompleted ? "Review" : "Continue"}
                             </Button>

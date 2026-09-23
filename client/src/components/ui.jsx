@@ -7,17 +7,31 @@ export const Card = ({ className = "", children, ...rest }) => (
   </div>
 );
 
-export const Button = ({ variant = "primary", className = "", children, ...rest }) => {
+export const Button = ({ variant = "primary", tone, size = "md", className = "", children, ...rest }) => {
   const variants = {
     primary: "bg-pine text-white hover:bg-pine-light disabled:opacity-50",
     secondary:
       "border border-border text-ink hover:bg-surface-sunken dark:border-dark-border dark:text-dark-ink dark:hover:bg-dark-surface-sunken",
     danger: "bg-clay text-white hover:opacity-90 disabled:opacity-50",
     ghost: "text-pine hover:bg-pine/10 dark:text-amber-light dark:hover:bg-amber-light/10",
+    pine: "bg-pine text-white hover:bg-pine-light disabled:opacity-50",
+    clay: "bg-clay text-white hover:opacity-90 disabled:opacity-50",
+    amber: "bg-amber text-white hover:bg-amber-light disabled:opacity-50",
+    neutral:
+      "border border-border text-ink hover:bg-surface-sunken dark:border-dark-border dark:text-dark-ink dark:hover:bg-dark-surface-sunken",
   };
+  const sizes = {
+    xs: "gap-1 rounded-md px-2 py-1 text-xs",
+    sm: "gap-1.5 rounded-lg px-3 py-1.5 text-xs",
+    md: "gap-2 rounded-lg px-4 py-2 text-sm",
+    lg: "gap-2 rounded-lg px-5 py-2.5 text-base",
+  };
+  const styleKey = tone || variant;
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        sizes[size] || sizes.md
+      } ${variants[styleKey] || variants.primary} ${className}`}
       {...rest}
     >
       {children}

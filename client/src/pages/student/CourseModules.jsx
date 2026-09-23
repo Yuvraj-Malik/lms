@@ -98,7 +98,7 @@ export default function CourseModules() {
               {course.title}
             </h1>
           </div>
-          <Link to={`/courses/${course._id}`}>
+          <Link to={`/dashboard/my-courses/${course._id}/details`}>
             <Button size="xs" tone="secondary">
               Course Syllabus & Details
             </Button>

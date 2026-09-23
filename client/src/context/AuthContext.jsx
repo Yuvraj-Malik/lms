@@ -26,12 +26,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });
     setUser(data.user);
+    localStorage.setItem("lastAuthMethod", "email");
+    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 
   const register = async (payload) => {
     const { data } = await authApi.register(payload);
     setUser(data.user);
+    localStorage.setItem("lastAuthMethod", "email");
+    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 
@@ -47,6 +51,8 @@ export const AuthProvider = ({ children }) => {
       googleId: fbUser.uid,
     });
     setUser(data.user);
+    localStorage.setItem("lastAuthMethod", "google");
+    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 

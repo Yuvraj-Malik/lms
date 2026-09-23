@@ -1,6 +1,5 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Moon, Sun, Menu, X, LogOut } from "lucide-react";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Moon, Sun, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useTheme } from "../context/ThemeContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
@@ -12,25 +11,15 @@ const RidgeMark = () => (
   </svg>
 );
 
-const navLinkClass = ({ isActive }) =>
-  `px-3 py-2 text-sm font-medium transition-colors ${
-    isActive
-      ? "text-pine dark:text-amber-light"
-      : "text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink"
-  }`;
-
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { dark, toggleDark } = useTheme();
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    navigate("/");
+    navigate("/login");
   };
-
-  const dashboardPath = user?.role === "admin" ? "/admin" : "/dashboard";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur dark:border-dark-border dark:bg-dark-surface/90">
@@ -42,24 +31,7 @@ const Navbar = () => {
           </span>
         </Link>
 
-        <nav className="hidden items-center md:flex">
-          <NavLink to="/" end className={navLinkClass}>
-            Home
-          </NavLink>
-          <NavLink to="/courses" className={navLinkClass}>
-            Courses
-          </NavLink>
-          <NavLink to="/about" className={navLinkClass}>
-            About
-          </NavLink>
-          {user && (
-            <NavLink to={dashboardPath} className={navLinkClass}>
-              Dashboard
-            </NavLink>
-          )}
-        </nav>
-
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleDark}
             aria-label="Toggle dark mode"
@@ -68,12 +40,12 @@ const Navbar = () => {
             {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
-          {user ? (
+          {user && (
             <div className="flex items-center gap-3">
               <NotificationBell />
               <Link
                 to="/profile"
-                className="text-sm font-medium text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink"
+                className="hidden text-sm font-medium text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink sm:inline"
               >
                 {user.name.split(" ")[0]}
               </Link>
@@ -84,75 +56,9 @@ const Navbar = () => {
                 <LogOut size={14} /> Log out
               </button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                to="/login"
-                className="px-3 py-1.5 text-sm font-medium text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/register"
-                className="rounded-lg bg-pine px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-pine-light"
-              >
-                Sign up
-              </Link>
-            </div>
           )}
         </div>
-
-        <div className="flex items-center gap-2 md:hidden">
-          {user && <NotificationBell />}
-          <button
-            className="p-2 text-ink dark:text-dark-ink"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
       </div>
-
-      {mobileOpen && (
-        <div className="border-t border-border px-4 pb-4 md:hidden dark:border-dark-border">
-          <div className="flex flex-col gap-1 pt-2">
-            <NavLink to="/" end className={navLinkClass} onClick={() => setMobileOpen(false)}>
-              Home
-            </NavLink>
-            <NavLink to="/courses" className={navLinkClass} onClick={() => setMobileOpen(false)}>
-              Courses
-            </NavLink>
-            <NavLink to="/about" className={navLinkClass} onClick={() => setMobileOpen(false)}>
-              About
-            </NavLink>
-            {user && (
-              <NavLink to={dashboardPath} className={navLinkClass} onClick={() => setMobileOpen(false)}>
-                Dashboard
-              </NavLink>
-            )}
-            <div className="mt-2 flex items-center justify-between border-t border-border pt-3 dark:border-dark-border">
-              <button onClick={toggleDark} className="flex items-center gap-2 text-sm text-ink-soft dark:text-dark-ink-soft">
-                {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? "Light mode" : "Dark mode"}
-              </button>
-              {user ? (
-                <button onClick={handleLogout} className="text-sm font-medium text-clay">
-                  Log out
-                </button>
-              ) : (
-                <div className="flex gap-3">
-                  <Link to="/login" className="text-sm font-medium text-ink-soft dark:text-dark-ink-soft">
-                    Log in
-                  </Link>
-                  <Link to="/register" className="text-sm font-medium text-pine dark:text-amber-light">
-                    Sign up
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

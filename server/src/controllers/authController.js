@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { signToken, sendTokenCookie } from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
+import { createNotification } from "./notificationController.js";
 
 // @route POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -47,7 +48,16 @@ export const register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role, department: user.department },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      authProvider: user.authProvider,
+      isSuperAdmin: user.isSuperAdmin,
+      hasPassword: true,
+    },
   });
 });
 
@@ -59,7 +69,10 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
-  if (!user || !(await user.comparePassword(password))) {
+  if (!user || !user.password) {
+    return res.status(401).json({ message: "Invalid email or password." });
+  }
+  if (!(await user.comparePassword(password))) {
     return res.status(401).json({ message: "Invalid email or password." });
   }
 
@@ -82,6 +95,9 @@ export const login = asyncHandler(async (req, res) => {
       role: user.role,
       avatar: user.avatar,
       department: user.department,
+      authProvider: user.authProvider,
+      isSuperAdmin: user.isSuperAdmin,
+      hasPassword: true,
     },
   });
 });
@@ -99,18 +115,30 @@ export const logout = asyncHandler(async (req, res) => {
 
 // @route GET /api/auth/me
 export const getMe = asyncHandler(async (req, res) => {
-  res.json({ user: req.user });
+  const fresh = await User.findById(req.user._id).select("+password");
+  const hasPassword = !!fresh.password;
+  const userObj = fresh.toObject();
+  delete userObj.password;
+  res.json({ user: { ...userObj, hasPassword } });
 });
 
 // @route POST /api/auth/forgot-password
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const user = await User.findOne({ email: email?.toLowerCase() });
+  const user = await User.findOne({ email: email?.toLowerCase() }).select("+password");
 
   // Always respond the same way, whether or not the user exists (avoid email enumeration)
   const genericResponse = { message: "If an account exists for that email, a reset link has been sent." };
 
   if (!user) return res.json(genericResponse);
+
+  // Google-signed-in accounts with no password can't reset one that never existed
+  if (!user.password) {
+    return res.status(400).json({
+      message:
+        "No existing password found for this account. This account was created with Google Sign-In — sign in with Google, then create a password from your account settings.",
+    });
+  }
 
   const rawToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
@@ -200,7 +228,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
   // Find user by googleId or email
   let user = await User.findOne({
     $or: [{ googleId: googleId || "__no_gid__" }, { email: cleanEmail }],
-  });
+  }).select("+password");
 
   if (user) {
     if (user.isActive === false) {
@@ -255,6 +283,9 @@ export const googleAuth = asyncHandler(async (req, res) => {
       role: user.role,
       avatar: user.avatar,
       department: user.department,
+      authProvider: user.authProvider,
+      isSuperAdmin: user.isSuperAdmin,
+      hasPassword: !!user.password,
     },
   });
 });

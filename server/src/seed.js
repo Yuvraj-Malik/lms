@@ -32,6 +32,7 @@ const run = async () => {
     email: "admin@lms.com",
     password: "admin123",
     role: "admin",
+    isSuperAdmin: true,
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
     bio: "Head of Computer Science & Full Stack Engineering. Over 12 years of industry and academic experience.",
   });
@@ -71,6 +72,17 @@ const run = async () => {
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
     bio: "UI/UX designer transitioning into full stack frontend engineering.",
   });
+
+  // Backdate account creation so "Joined" dates reflect a realistic history
+  // (mongoose timestamps always set createdAt to "now"; bypass via the raw driver).
+  const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+  await Promise.all([
+    User.collection.updateOne({ _id: admin._id }, { $set: { createdAt: daysAgo(120) } }),
+    User.collection.updateOne({ _id: student1._id }, { $set: { createdAt: daysAgo(60) } }),
+    User.collection.updateOne({ _id: student2._id }, { $set: { createdAt: daysAgo(45) } }),
+    User.collection.updateOne({ _id: student3._id }, { $set: { createdAt: daysAgo(35) } }),
+    User.collection.updateOne({ _id: student4._id }, { $set: { createdAt: daysAgo(25) } }),
+  ]);
 
   console.log("Creating courses...");
 

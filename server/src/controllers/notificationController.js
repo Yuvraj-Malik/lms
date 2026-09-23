@@ -4,9 +4,9 @@ import asyncHandler from "../utils/asyncHandler.js";
 /**
  * Utility helper to dispatch an in-app notification.
  */
-export const createNotification = async ({ user, title, message, link, type }) => {
+export const createNotification = async ({ user, sentBy, title, message, link, type }) => {
   try {
-    return await Notification.create({ user, title, message, link, type });
+    return await Notification.create({ user, sentBy: sentBy || null, title, message, link, type });
   } catch (err) {
     console.error("Failed to create notification:", err.message);
     return null;
@@ -16,6 +16,7 @@ export const createNotification = async ({ user, title, message, link, type }) =
 // @route GET /api/notifications
 export const getMyNotifications = asyncHandler(async (req, res) => {
   const notifications = await Notification.find({ user: req.user._id })
+    .populate("sentBy", "name role avatar")
     .sort({ createdAt: -1 })
     .limit(30);
 
@@ -43,4 +44,10 @@ export const markAsRead = asyncHandler(async (req, res) => {
 export const markAllAsRead = asyncHandler(async (req, res) => {
   await Notification.updateMany({ user: req.user._id, isRead: false }, { isRead: true });
   res.json({ message: "All notifications marked as read." });
+});
+
+// @route DELETE /api/notifications/clear-all
+export const clearAllNotifications = asyncHandler(async (req, res) => {
+  await Notification.deleteMany({ user: req.user._id });
+  res.json({ message: "All notifications cleared." });
 });

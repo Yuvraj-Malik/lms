@@ -29,7 +29,9 @@ const Login = () => {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const lastAuthMethod = localStorage.getItem("lastAuthMethod");
+  const lastAuthEmail = localStorage.getItem("lastAuthEmail");
+  const [form, setForm] = useState({ email: lastAuthEmail || "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -77,28 +79,15 @@ const Login = () => {
         <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Log in</h1>
         <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">Welcome back to TaskPulse.</p>
 
-        {error && <Alert className="mt-4">{error}</Alert>}
+        {lastAuthMethod && (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-3 py-1 text-xs font-medium text-ink-soft dark:bg-dark-surface-sunken dark:text-dark-ink-soft">
+            Last signed in with {lastAuthMethod === "google" ? "Google" : "email & password"}
+            {lastAuthEmail ? ` · ${lastAuthEmail}` : ""}
+          </p>
+        )}
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading || loading}
-          className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink shadow-sm transition hover:bg-surface-sunken disabled:opacity-50 dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink dark:hover:bg-dark-surface-sunken cursor-pointer"
-        >
-          <GoogleIcon />
-          <span>{googleLoading ? "Connecting to Google…" : "Continue with Google"}</span>
-        </button>
-
-        <div className="relative my-6 text-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border dark:border-dark-border" />
-          </div>
-          <span className="relative bg-surface-raised px-3 text-xs uppercase tracking-wider text-ink-soft dark:bg-dark-surface-raised dark:text-dark-ink-soft">
-            or continue with email
-          </span>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {error && <Alert>{error}</Alert>}
           <Input
             label="Email"
             type="email"
@@ -122,6 +111,25 @@ const Login = () => {
             {loading ? "Logging in…" : "Log in"}
           </Button>
         </form>
+
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border dark:border-dark-border" />
+          </div>
+          <span className="relative bg-surface-raised px-3 text-xs uppercase tracking-wider text-ink-soft dark:bg-dark-surface-raised dark:text-dark-ink-soft">
+            or continue with Google
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink shadow-sm transition hover:bg-surface-sunken disabled:opacity-50 dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink dark:hover:bg-dark-surface-sunken cursor-pointer"
+        >
+          <GoogleIcon />
+          <span>{googleLoading ? "Connecting to Google…" : "Continue with Google"}</span>
+        </button>
 
         <p className="mt-6 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
           Don't have an account?{" "}

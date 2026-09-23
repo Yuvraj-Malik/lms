@@ -69,6 +69,7 @@ export const adminApi = {
   resetSubmission: (id) => api.delete(`/admin/submissions/${id}/reset`),
   extendDeadline: (data) => api.post("/admin/assignments/extend-deadline", data),
   allSubmissions: (params) => api.get("/admin/submissions", { params }),
+  sendNotification: (data) => api.post("/admin/notifications", data),
 };
 
 export const dashboardApi = {
@@ -85,5 +86,6 @@ export const notificationApi = {
   list: () => api.get("/notifications"),
   markRead: (id) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put("/notifications/read-all"),
+  clearAll: () => api.delete("/notifications/clear-all"),
 };
 

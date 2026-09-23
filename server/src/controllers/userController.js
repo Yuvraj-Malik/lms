@@ -92,15 +92,27 @@ export const updateProfile = asyncHandler(async (req, res) => {
 // @route PUT /api/users/change-password
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword || newPassword.length < 6) {
-    return res.status(400).json({ message: "Current password and a new password (6+ chars) are required." });
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: "A new password (6+ characters) is required." });
   }
 
   const user = await User.findById(req.user._id).select("+password");
-  const isMatch = await user.comparePassword(currentPassword);
-  if (!isMatch) return res.status(401).json({ message: "Current password is incorrect." });
 
+  if (user.password) {
+    // Existing password: verify it before allowing an update
+    if (!currentPassword) {
+      return res.status(400).json({ message: "Current password is required to update your password." });
+    }
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(401).json({ message: "Current password is incorrect." });
+  }
+
+  const isFirstPassword = !user.password;
   user.password = newPassword;
   await user.save();
-  res.json({ message: "Password changed successfully." });
+
+  res.json({
+    message: isFirstPassword ? "Password created successfully." : "Password changed successfully.",
+    hasPassword: true,
+  });
 });

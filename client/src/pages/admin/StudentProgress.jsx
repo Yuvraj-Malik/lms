@@ -256,7 +256,7 @@ export default function StudentProgress() {
                         {course.title || "Course"}
                       </h3>
                       <p className="text-[11px] text-ink-soft dark:text-dark-ink-soft">
-                        Enrolled {new Date(e.createdAt).toLocaleDateString()}
+                        Enrolled {new Date(e.enrollmentDate).toLocaleDateString()}
                       </p>
                     </div>
                     <Badge tone={isCompleted ? "pine" : isInProgress ? "amber" : "neutral"}>

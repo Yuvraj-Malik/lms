@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Trash2, Pencil, Layers, ClipboardList } from "lucide-react";
+import { Plus, Trash2, Pencil, Layers, ClipboardList, Users } from "lucide-react";
 import { courseApi } from "../../api/endpoints.js";
 import { Card, Badge, Button, Spinner, EmptyState } from "../../components/ui.jsx";
 
@@ -62,7 +62,12 @@ const ManageCourses = () => {
             <Card key={c._id} className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-ink dark:text-dark-ink">{c.title}</p>
+                  <Link
+                    to={`/admin/courses/${c._id}/enrollments`}
+                    className="font-medium text-ink hover:text-pine hover:underline dark:text-dark-ink dark:hover:text-amber-light"
+                  >
+                    {c.title}
+                  </Link>
                   <Badge tone="pine">{c.category}</Badge>
                   <Badge>{c.difficulty}</Badge>
                 </div>
@@ -71,6 +76,11 @@ const ManageCourses = () => {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Link to={`/admin/courses/${c._id}/enrollments`}>
+                  <Button variant="secondary">
+                    <Users size={14} /> Enrollments
+                  </Button>
+                </Link>
                 <Link to={`/admin/courses/${c._id}/modules`}>
                   <Button variant="secondary">
                     <Layers size={14} /> Modules

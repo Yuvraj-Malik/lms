@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { 
   BookOpen, 
   LayoutDashboard, 
@@ -11,17 +11,13 @@ import {
   User 
 } from "lucide-react";
 
-import { AuthProvider } from "./context/AuthContext.jsx";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import DashboardShell from "./components/DashboardShell.jsx";
 
-import Home from "./pages/public/Home.jsx";
-import About from "./pages/public/About.jsx";
-import Courses from "./pages/public/Courses.jsx";
-import CourseDetails from "./pages/public/CourseDetails.jsx";
 import Login from "./pages/public/Login.jsx";
 import Register from "./pages/public/Register.jsx";
 import ForgotPassword from "./pages/public/ForgotPassword.jsx";
@@ -31,6 +27,7 @@ import NotFound from "./pages/public/NotFound.jsx";
 
 import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import MyCourses from "./pages/student/MyCourses.jsx";
+import CourseDetails from "./pages/student/CourseDetails.jsx";
 import CourseModules from "./pages/student/CourseModules.jsx";
 import StudentAssignments from "./pages/student/StudentAssignments.jsx";
 import AssignmentDetail from "./pages/student/AssignmentDetail.jsx";
@@ -39,6 +36,7 @@ import StudentSettings from "./pages/student/StudentSettings.jsx";
 
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ManageCourses from "./pages/admin/ManageCourses.jsx";
+import CourseEnrollments from "./pages/admin/CourseEnrollments.jsx";
 import AddEditCourse from "./pages/admin/AddEditCourse.jsx";
 import ManageModules from "./pages/admin/ManageModules.jsx";
 import ManageAssignments from "./pages/admin/ManageAssignments.jsx";
@@ -50,7 +48,7 @@ import AdminSettings from "./pages/admin/AdminSettings.jsx";
 
 const studentLinks = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/dashboard/my-courses", label: "My Courses", icon: BookOpen },
+  { to: "/dashboard/my-courses", label: "Courses", icon: BookOpen },
   { to: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
   { to: "/dashboard/progress", label: "Progress", icon: TrendingUp },
   { to: "/dashboard/profile", label: "Profile", icon: User },
@@ -73,6 +71,19 @@ const Layout = ({ children }) => (
   </div>
 );
 
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-pine border-t-transparent" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+};
+
 function App() {
   return (
     <ThemeProvider>
@@ -81,10 +92,7 @@ function App() {
           <Layout>
             <Routes>
               {/* Public */}
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/courses" element={<Courses />} />
-              <Route path="/courses/:id" element={<CourseDetails />} />
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -100,6 +108,7 @@ function App() {
                 <Route element={<DashboardShell title="Student" links={studentLinks} />}>
                   <Route path="/dashboard" element={<StudentDashboard />} />
                   <Route path="/dashboard/my-courses" element={<MyCourses />} />
+                  <Route path="/dashboard/my-courses/:courseId/details" element={<CourseDetails />} />
                   <Route path="/dashboard/my-courses/:courseId" element={<CourseModules />} />
                   <Route path="/dashboard/assignments" element={<StudentAssignments />} />
                   <Route path="/dashboard/assignments/:id" element={<AssignmentDetail />} />
@@ -116,6 +125,7 @@ function App() {
                   <Route path="/admin/courses" element={<ManageCourses />} />
                   <Route path="/admin/courses/new" element={<AddEditCourse />} />
                   <Route path="/admin/courses/:id/edit" element={<AddEditCourse />} />
+                  <Route path="/admin/courses/:courseId/enrollments" element={<CourseEnrollments />} />
                   <Route path="/admin/courses/:courseId/modules" element={<ManageModules />} />
                   <Route path="/admin/courses/:courseId/assignments" element={<ManageAssignments />} />
                   <Route path="/admin/assignments/:assignmentId/submissions" element={<ViewSubmissions />} />

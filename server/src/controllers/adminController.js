@@ -4,6 +4,7 @@ import Enrollment from "../models/Enrollment.js";
 import Assignment from "../models/Assignment.js";
 import Submission from "../models/Submission.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { createNotification } from "./notificationController.js";
 
 // @route GET /api/admin/stats
 export const getPlatformStats = asyncHandler(async (req, res) => {
@@ -217,22 +218,43 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 // @route PUT /api/admin/users/:id/role
 export const updateUserRole = asyncHandler(async (req, res) => {
   const { role } = req.body;
-  if (!["student", "admin"].includes(role)) {
-    return res.status(400).json({ message: "Role must be 'student' or 'admin'." });
+  if (!["student", "admin", "superadmin"].includes(role)) {
+    return res.status(400).json({ message: "Role must be 'student', 'admin' or 'superadmin'." });
+  }
+
+  if (!req.user.isSuperAdmin) {
+    return res.status(403).json({ message: "Only the super admin can change admin roles." });
+  }
+
+  if (String(req.user._id) === String(req.params.id)) {
+    return res.status(400).json({ message: "You cannot change your own role." });
   }
 
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "User not found." });
 
-  user.role = role;
+  if (user.isSuperAdmin) {
+    return res.status(403).json({ message: "The super admin's role is protected and cannot be changed." });
+  }
+
+  user.role = role === "superadmin" ? "admin" : role;
+  user.isSuperAdmin = role === "superadmin";
   await user.save();
-  res.json({ user, message: `User role updated to ${role}.` });
+  res.json({ user, message: `User role updated to ${role === "superadmin" ? "Super Admin" : role}.` });
 });
 
 // @route PUT /api/admin/users/:id/status
 export const toggleUserStatus = asyncHandler(async (req, res) => {
+  if (String(req.user._id) === String(req.params.id)) {
+    return res.status(400).json({ message: "You cannot deactivate your own account." });
+  }
+
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "User not found." });
+
+  if (user.isSuperAdmin) {
+    return res.status(403).json({ message: "The super admin's account is protected and cannot be deactivated." });
+  }
 
   user.isActive = !user.isActive;
   await user.save();
@@ -247,6 +269,10 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "User not found." });
+
+  if (user.isSuperAdmin) {
+    return res.status(403).json({ message: "The super admin's account is protected and cannot be deleted." });
+  }
 
   await Promise.all([
     Enrollment.deleteMany({ student: user._id }),
@@ -273,4 +299,44 @@ export const getAllSubmissions = asyncHandler(async (req, res) => {
     .sort({ submissionDate: -1 });
 
   res.json({ submissions, count: submissions.length });
+});
+
+// @route POST /api/admin/notifications (broadcast / targeted notification)
+export const sendAdminNotification = asyncHandler(async (req, res) => {
+  const { title, message, link, audience, userId } = req.body;
+
+  if (!title?.trim() || !message?.trim()) {
+    return res.status(400).json({ message: "Title and message are required." });
+  }
+
+  let recipients = [];
+  if (audience === "specific") {
+    if (!userId) return res.status(400).json({ message: "Select a user to notify." });
+    const target = await User.findById(userId).select("_id");
+    if (!target) return res.status(404).json({ message: "User not found." });
+    recipients = [target];
+  } else if (audience === "students") {
+    recipients = await User.find({ role: "student" }).select("_id");
+  } else if (audience === "admins") {
+    recipients = await User.find({ role: "admin" }).select("_id");
+  } else {
+    recipients = await User.find({}).select("_id");
+  }
+
+  await Promise.all(
+    recipients.map((r) =>
+      createNotification({
+        user: r._id,
+        sentBy: req.user._id,
+        title: title.trim(),
+        message: message.trim(),
+        link: link?.trim() || "",
+        type: "admin_announcement",
+      })
+    )
+  );
+
+  res.status(201).json({
+    message: `Notification sent to ${recipients.length} user${recipients.length !== 1 ? "s" : ""}.`,
+  });
 });

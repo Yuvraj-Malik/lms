@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    sentBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     title: { type: String, required: true, trim: true },
     message: { type: String, required: true },
-    link: { type: String, required: true },
+    link: { type: String, default: "" },
     type: {
       type: String,
       enum: [
@@ -16,6 +17,7 @@ const notificationSchema = new mongoose.Schema(
         "course_completed",
         "student_registered",
         "submission_received",
+        "admin_announcement",
       ],
       default: "assignment_new",
     },

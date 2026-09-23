@@ -90,7 +90,7 @@ const StudentDashboard = () => {
                 description="Browse the catalog and enroll in your first course."
                 action={
                   <Link
-                    to="/courses"
+                    to="/dashboard/my-courses"
                     className="inline-flex items-center gap-1.5 text-sm font-medium text-pine dark:text-amber-light"
                   >
                     Browse courses <ArrowRight size={14} />

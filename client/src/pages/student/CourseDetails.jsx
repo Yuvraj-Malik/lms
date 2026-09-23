@@ -99,8 +99,8 @@ const CourseDetails = () => {
             <Card className="max-w-sm">
               <p className="text-sm font-medium text-ink dark:text-dark-ink">You're enrolled</p>
               <ProgressBar value={enrollment.progress} className="mt-3" />
-              <Link to="/dashboard/my-courses">
-                <Button className="mt-4 w-full">Go to My Courses</Button>
+              <Link to={`/dashboard/my-courses/${course._id}`}>
+                <Button className="mt-4 w-full">Go to Course</Button>
               </Link>
             </Card>
           ) : (
@@ -109,11 +109,6 @@ const CourseDetails = () => {
             </Button>
           )}
         </div>
-      )}
-      {!user && (
-        <Link to="/login" state={{ from: { pathname: `/courses/${id}` } }}>
-          <Button className="mt-6">Log in to enroll</Button>
-        </Link>
       )}
 
       <div className="mt-10 grid gap-8 md:grid-cols-2">

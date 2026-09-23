@@ -16,6 +16,7 @@ import {
   toggleUserStatus,
   deleteUser,
   getAllSubmissions,
+  sendAdminNotification,
 } from "../controllers/adminController.js";
 import { protect, requireRole } from "../middleware/auth.js";
 
@@ -45,5 +46,8 @@ router.get("/users", getAllUsers);
 router.put("/users/:id/role", updateUserRole);
 router.put("/users/:id/status", toggleUserStatus);
 router.delete("/users/:id", deleteUser);
+
+// Notifications
+router.post("/notifications", sendAdminNotification);
 
 export default router;

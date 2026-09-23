@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     role: { type: String, enum: ["student", "admin"], default: "student" },
+    isSuperAdmin: { type: Boolean, default: false },
     avatar: { type: String, default: "" },
     bio: { type: String, default: "" },
     department: { type: String, default: "Computer Science & Engineering" },

@@ -7,7 +7,7 @@ const NotFound = () => (
       There's no trail here. This page doesn't exist.
     </p>
     <Link to="/" className="mt-6 text-sm font-medium text-pine dark:text-amber-light">
-      Back to home
+      Back to login
     </Link>
   </div>
 );

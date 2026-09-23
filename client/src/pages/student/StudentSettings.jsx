@@ -87,12 +87,13 @@ export default function StudentSettings() {
 
     setSavingPw(true);
     try {
-      await userApi.changePassword({
+      const res = await userApi.changePassword({
         currentPassword: pwForm.currentPassword,
         newPassword: pwForm.newPassword,
       });
-      setPwMsg("Your password has been updated.");
+      setPwMsg(res.data.message || "Your password has been updated.");
       setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setUser((prev) => (prev ? { ...prev, hasPassword: true } : prev));
     } catch (err) {
       setPwErr(getErrorMessage(err));
     } finally {
@@ -198,7 +199,7 @@ export default function StudentSettings() {
         </form>
       </Card>
 
-      {/* Password Change */}
+      {/* Password Create / Change */}
       <Card>
         <div className="flex items-center gap-3 border-b border-border/70 pb-4 dark:border-dark-border/70">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/10 text-amber dark:bg-amber-light/10 dark:text-amber-light">
@@ -206,10 +207,12 @@ export default function StudentSettings() {
           </div>
           <div>
             <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-              Change Password
+              {user?.hasPassword ? "Change Password" : "Create Password"}
             </h2>
             <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-              Ensure your account stays secure by choosing a strong password.
+              {user?.hasPassword
+                ? "Ensure your account stays secure by choosing a strong password."
+                : "Your account was created with Google Sign-In. Create a password to also log in with your email."}
             </p>
           </div>
         </div>
@@ -218,13 +221,15 @@ export default function StudentSettings() {
           {pwErr && <Alert>{pwErr}</Alert>}
           {pwMsg && <Alert tone="pine">{pwMsg}</Alert>}
 
-          <Input
-            label="Current Password"
-            type="password"
-            value={pwForm.currentPassword}
-            onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
-            required
-          />
+          {user?.hasPassword && (
+            <Input
+              label="Current Password"
+              type="password"
+              value={pwForm.currentPassword}
+              onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+              required
+            />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -246,7 +251,7 @@ export default function StudentSettings() {
           <div className="flex justify-end pt-2">
             <Button type="submit" tone="secondary" disabled={savingPw}>
               <ShieldCheck size={16} className="mr-1.5" />
-              {savingPw ? "Updating..." : "Update Password"}
+              {savingPw ? "Saving..." : user?.hasPassword ? "Update Password" : "Create Password"}
             </Button>
           </div>
         </form>
