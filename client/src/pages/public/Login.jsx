@@ -77,7 +77,7 @@ const Login = () => {
     <div className="mx-auto flex min-h-[75vh] max-w-md items-center px-4 py-10 sm:px-6">
       <Card className="w-full">
         <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Log in</h1>
-        <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">Welcome back to TaskPulse.</p>
+        <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">Welcome back to LMS.</p>
 
         {lastAuthMethod && (
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-3 py-1 text-xs font-medium text-ink-soft dark:bg-dark-surface-sunken dark:text-dark-ink-soft">
