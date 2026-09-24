@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useTheme } from "../../context/ThemeContext.jsx";
 import { getErrorMessage } from "../../api/client.js";
 import { Input, Button, Alert, Divider } from "../../components/ui.jsx";
 
@@ -23,6 +25,7 @@ const Logo = () => (
 
 const Login = () => {
   const { login, loginWithGoogle } = useAuth();
+  const { dark, toggleDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const lastAuthMethod = localStorage.getItem("lastAuthMethod");
@@ -69,17 +72,27 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-4">
+      {/* Top right theme toggle */}
+      <button
+        onClick={toggleDark}
+        type="button"
+        aria-label="Toggle theme"
+        className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-raised text-ink-soft transition-colors hover:bg-surface-sunken hover:text-ink dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink-soft dark:hover:bg-dark-surface-elevated dark:hover:text-dark-ink"
+      >
+        {dark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+
       <div className="w-full max-w-sm animate-fade-up">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
+        <div className="mb-6 text-center">
+          <div className="mb-3 flex justify-center">
             <Logo />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-dark-ink">
             Welcome back
           </h1>
-          <p className="mt-1.5 text-sm text-ink-soft dark:text-dark-ink-soft">
+          <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
             Sign in to your Ridgeline account
           </p>
         </div>
@@ -87,7 +100,7 @@ const Login = () => {
         {/* Card */}
         <div className="rounded-2xl border border-border bg-surface-raised p-6 shadow-sm dark:border-dark-border dark:bg-dark-surface-raised">
           {lastAuthMethod && (
-            <div className="mb-4 rounded-lg bg-surface-sunken px-3 py-2 text-xs text-ink-soft dark:bg-dark-surface-elevated dark:text-dark-ink-soft">
+            <div className="mb-3.5 rounded-lg bg-surface-sunken px-3 py-1.5 text-xs text-ink-soft dark:bg-dark-surface-elevated dark:text-dark-ink-soft">
               Last signed in with{" "}
               <span className="font-medium text-ink dark:text-dark-ink">
                 {lastAuthMethod === "google" ? "Google" : "email & password"}
@@ -96,9 +109,9 @@ const Login = () => {
             </div>
           )}
 
-          {error && <Alert tone="clay" className="mb-4">{error}</Alert>}
+          {error && <Alert tone="clay" className="mb-3.5">{error}</Alert>}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <Input
               label="Email"
               type="email"
@@ -118,7 +131,7 @@ const Login = () => {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="••••••••"
               />
-              <div className="mt-1.5 flex justify-end">
+              <div className="mt-1 flex justify-end">
                 <Link
                   to="/forgot-password"
                   className="text-xs font-medium text-pine hover:text-pine-light dark:text-pine-lighter dark:hover:text-pine-lighter/80"
@@ -132,33 +145,20 @@ const Login = () => {
             </Button>
           </form>
 
-          <Divider label="or" className="my-5" />
+          <Divider label="or" className="my-4" />
 
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface-raised py-2.5 text-sm font-medium text-ink shadow-sm transition-colors hover:bg-surface-sunken disabled:opacity-50 dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink dark:hover:bg-dark-surface-elevated"
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface-raised py-2 text-sm font-medium text-ink shadow-sm transition-colors hover:bg-surface-sunken disabled:opacity-50 dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink dark:hover:bg-dark-surface-elevated"
           >
             <GoogleIcon />
             {googleLoading ? "Connecting…" : "Continue with Google"}
           </button>
-
-          {/* Demo credentials */}
-          <div className="mt-5 rounded-lg bg-surface-sunken px-3 py-2.5 dark:bg-dark-surface-elevated">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-dark-ink-muted">
-              Demo credentials
-            </p>
-            <p className="font-mono text-xs text-ink-soft dark:text-dark-ink-soft">
-              admin@lms.com / admin123
-            </p>
-            <p className="font-mono text-xs text-ink-soft dark:text-dark-ink-soft">
-              student@lms.com / student123
-            </p>
-          </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
+        <p className="mt-5 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
           Don't have an account?{" "}
           <Link to="/register" className="font-semibold text-pine hover:text-pine-light dark:text-pine-lighter">
             Create one free

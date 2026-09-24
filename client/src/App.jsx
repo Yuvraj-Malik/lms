@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { 
   BookOpen, 
   LayoutDashboard, 
@@ -63,13 +63,27 @@ const adminLinks = [
   { to: "/admin/settings", label: "Users & Settings", icon: Settings },
 ];
 
-const Layout = ({ children }) => (
-  <div className="flex min-h-screen flex-col">
-    <Navbar />
-    <main className="flex-1">{children}</main>
-    <Footer />
-  </div>
-);
+const Layout = ({ children }) => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/login";
+  const isRegisterPage = location.pathname === "/register";
+
+  if (isLoginPage) {
+    return <main className="h-screen w-full overflow-hidden">{children}</main>;
+  }
+
+  if (isRegisterPage) {
+    return <main className="min-h-screen w-full">{children}</main>;
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <main className="flex-1">{children}</main>
+      <Footer />
+    </div>
+  );
+};
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();

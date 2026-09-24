@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Shield, Moon, Sun } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useTheme } from "../../context/ThemeContext.jsx";
 import { getErrorMessage } from "../../api/client.js";
 import { Input, Button, Alert, Divider } from "../../components/ui.jsx";
-import { Shield } from "lucide-react";
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -24,6 +25,7 @@ const Logo = () => (
 
 const Register = () => {
   const { register, loginWithGoogle } = useAuth();
+  const { dark, toggleDark } = useTheme();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [asAdmin, setAsAdmin] = useState(false);
@@ -69,17 +71,27 @@ const Register = () => {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-12">
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-x-hidden px-4 py-8">
+      {/* Top right theme toggle */}
+      <button
+        onClick={toggleDark}
+        type="button"
+        aria-label="Toggle theme"
+        className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-raised text-ink-soft transition-colors hover:bg-surface-sunken hover:text-ink dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink-soft dark:hover:bg-dark-surface-elevated dark:hover:text-dark-ink"
+      >
+        {dark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+
       <div className="w-full max-w-sm animate-fade-up">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
+        <div className="mb-6 text-center">
+          <div className="mb-3 flex justify-center">
             <Logo />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-dark-ink">
             Create your account
           </h1>
-          <p className="mt-1.5 text-sm text-ink-soft dark:text-dark-ink-soft">
+          <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
             Start learning on Ridgeline today
           </p>
         </div>
