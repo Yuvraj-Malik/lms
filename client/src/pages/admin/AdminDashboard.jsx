@@ -18,19 +18,27 @@ import { adminApi } from "../../api/endpoints.js";
 import { Card, Spinner } from "../../components/ui.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
 
-const PIE_COLORS = ["var(--color-pine)", "var(--color-amber)", "var(--color-clay)"];
+const PIE_COLORS = ["#166534", "#d97706", "#dc2626", "#0284c7"];
 
-const StatCard = ({ icon: Icon, label, value }) => (
-  <Card className="flex items-center gap-4">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-pine/10 text-pine dark:bg-pine-light/15 dark:text-pine-light">
-      <Icon size={18} />
-    </div>
-    <div>
-      <p className="text-xl font-semibold text-ink dark:text-dark-ink">{value}</p>
-      <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{label}</p>
-    </div>
-  </Card>
-);
+const StatCard = ({ icon: Icon, label, value, tone = "pine" }) => {
+  const toneMap = {
+    pine: "bg-pine-bg text-pine dark:bg-pine-light/10 dark:text-pine-lighter",
+    amber: "bg-amber-bg text-amber dark:bg-amber/10 dark:text-amber-lighter",
+    clay: "bg-clay-bg text-clay dark:bg-clay/10 dark:text-clay-light",
+    sky: "bg-sky-bg text-sky dark:bg-sky/10 dark:text-sky",
+  };
+  return (
+    <Card className="flex items-center gap-4 p-5">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${toneMap[tone]}`}>
+        <Icon size={20} />
+      </div>
+      <div>
+        <p className="text-2xl font-bold tracking-tight text-ink dark:text-dark-ink">{value}</p>
+        <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{label}</p>
+      </div>
+    </Card>
+  );
+};
 
 const AdminDashboard = () => {
   const { dark } = useTheme();
@@ -58,14 +66,14 @@ const AdminDashboard = () => {
     });
   }, []);
 
-  const gridColor = dark ? "#262d36" : "#e1ddd3";
-  const textColor = dark ? "#9aa3ad" : "#4b5568";
+  const gridColor = dark ? "#374151" : "#e5e7eb";
+  const textColor = dark ? "#9ca3af" : "#6b7280";
   const tooltipStyle = {
     fontSize: 12,
     borderRadius: 8,
-    backgroundColor: dark ? "#171d24" : "#ffffff",
-    borderColor: dark ? "#262d36" : "#e1ddd3",
-    color: dark ? "#e7e7e2" : "#1c2430",
+    backgroundColor: dark ? "#1f2937" : "#ffffff",
+    borderColor: dark ? "#374151" : "#e5e7eb",
+    color: dark ? "#f9fafb" : "#111827",
   };
 
   if (loading) {
@@ -77,23 +85,27 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Admin Dashboard</h1>
-      <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">Platform overview and analytics.</p>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={Users} label="Students" value={stats.studentCount} />
-        <StatCard icon={BookOpen} label="Courses" value={stats.courseCount} />
-        <StatCard icon={Layers} label="Enrollments" value={stats.enrollmentCount} />
-        <StatCard icon={ClipboardList} label="Assignments" value={stats.assignmentCount} />
-        <StatCard icon={FileCheck} label="Submissions" value={stats.submissionCount} />
-        <StatCard icon={AlertCircle} label="Pending grading" value={stats.pendingGrading} />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-dark-ink">Admin Dashboard</h1>
+        <p className="mt-0.5 text-sm text-ink-soft dark:text-dark-ink-soft">Platform overview and analytics.</p>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard icon={Users} label="Total students" value={stats.studentCount} tone="sky" />
+        <StatCard icon={BookOpen} label="Courses" value={stats.courseCount} tone="pine" />
+        <StatCard icon={Layers} label="Enrollments" value={stats.enrollmentCount} tone="pine" />
+        <StatCard icon={ClipboardList} label="Assignments" value={stats.assignmentCount} tone="amber" />
+        <StatCard icon={FileCheck} label="Submissions" value={stats.submissionCount} tone="amber" />
+        <StatCard icon={AlertCircle} label="Pending grading" value={stats.pendingGrading} tone="clay" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">Enrollments by course</h2>
-          <div className="mt-4 h-64">
+          <div className="border-b border-border p-4 dark:border-dark-border">
+            <h2 className="text-sm font-semibold text-ink dark:text-dark-ink">Enrollments by Course</h2>
+          </div>
+          <div className="p-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={enrollByCourse} margin={{ left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />

@@ -25,19 +25,22 @@ const Progress = () => {
       {enrollments.length === 0 ? (
         <EmptyState title="No progress to show yet" description="Enroll in a course to start tracking it." />
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-5">
           {enrollments.map((e) => (
-            <Card key={e._id}>
+            <Card
+              key={e._id}
+              className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-ink dark:text-dark-ink">{e.course.title}</p>
-                  <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
+                  <p className="text-base font-semibold text-ink dark:text-dark-ink">{e.course.title}</p>
+                  <p className="mt-0.5 text-sm text-ink-soft dark:text-dark-ink-soft">
                     {e.completedModules.length} module{e.completedModules.length !== 1 ? "s" : ""} completed
                   </p>
                 </div>
                 <Badge tone={e.status === "completed" ? "pine" : "amber"}>{e.status}</Badge>
               </div>
-              <ProgressBar value={e.progress} className="mt-3" />
+              <ProgressBar value={e.progress} className="mt-5" />
             </Card>
           ))}
         </div>

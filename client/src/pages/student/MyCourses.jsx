@@ -1,11 +1,91 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Search, CheckCircle2 } from "lucide-react";
+import { Search, CheckCircle2, BookOpen, Clock, BarChart2, Filter } from "lucide-react";
 import { courseApi, enrollmentApi } from "../../api/endpoints.js";
-import { Card, Badge, Select, Spinner, EmptyState } from "../../components/ui.jsx";
+import { Badge, Select, Spinner, EmptyState, Button } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
 
+const ACCENTS = [
+  { bg: "from-[#166534] to-[#16a34a]", text: "text-[#bbf7d0]" },
+  { bg: "from-[#0284c7] to-[#0ea5e9]", text: "text-[#bae6fd]" },
+  { bg: "from-[#7c3aed] to-[#a855f7]", text: "text-[#e9d5ff]" },
+  { bg: "from-[#d97706] to-[#f59e0b]", text: "text-[#fde68a]" },
+  { bg: "from-[#dc2626] to-[#ef4444]", text: "text-[#fecaca]" },
+  { bg: "from-[#0f766e] to-[#14b8a6]", text: "text-[#ccfbf1]" },
+];
+
 const difficultyTone = { Beginner: "pine", Intermediate: "amber", Advanced: "clay" };
+
+const CourseCard = ({ course, enrollment, accentIndex }) => {
+  const accent = ACCENTS[accentIndex % ACCENTS.length];
+  const href = enrollment
+    ? `/dashboard/my-courses/${course._id}`
+    : `/dashboard/my-courses/${course._id}/details`;
+
+  return (
+    <Link to={href} className="group block">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-dark-border dark:bg-dark-surface-raised">
+        {/* Color strip header */}
+        <div className={`relative h-28 bg-gradient-to-br ${accent.bg} p-4`}>
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 70% 30%, white 0%, transparent 60%)" }} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-xl font-bold text-white backdrop-blur-sm">
+            {course.title[0]}
+          </div>
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+            {enrollment && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                <CheckCircle2 size={10} /> Enrolled
+              </span>
+            )}
+            <Badge tone={difficultyTone[course.difficulty]} size="xs">
+              {course.difficulty}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Card body */}
+        <div className="p-4">
+          <div className="mb-2">
+            <Badge tone="neutral" size="xs">{course.category}</Badge>
+          </div>
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink group-hover:text-pine dark:text-dark-ink dark:group-hover:text-pine-lighter">
+            {course.title}
+          </h3>
+          <p className="mt-1.5 line-clamp-2 text-xs text-ink-soft dark:text-dark-ink-soft">
+            {course.description}
+          </p>
+
+          <div className="mt-3 flex items-center gap-3 text-[11px] text-ink-muted dark:text-dark-ink-muted">
+            <span className="flex items-center gap-1">
+              <BookOpen size={11} /> {course.instructor}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock size={11} /> {course.duration}
+            </span>
+          </div>
+
+          {enrollment ? (
+            <div className="mt-3 border-t border-border pt-3 dark:border-dark-border">
+              <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                <span className="font-medium text-ink-soft dark:text-dark-ink-soft">Progress</span>
+                <span className="font-semibold text-pine dark:text-pine-lighter">
+                  {enrollment.progress}%
+                </span>
+              </div>
+              <ProgressBar value={enrollment.progress} showLabel={false} />
+            </div>
+          ) : (
+            <div className="mt-3 border-t border-border pt-3 dark:border-dark-border">
+              <span className="text-xs font-medium text-pine dark:text-pine-lighter">
+                View course →
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+};
 
 const MyCourses = () => {
   const [courses, setCourses] = useState([]);
@@ -16,19 +96,12 @@ const MyCourses = () => {
   const [category, setCategory] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [sort, setSort] = useState("newest");
-  const [tab, setTab] = useState("all"); // "all" | "enrolled"
+  const [tab, setTab] = useState("all");
 
   useEffect(() => {
     courseApi.categories().then(({ data }) => setCategories(data.categories));
-  }, []);
-
-  const loadEnrollments = useCallback(() => {
     enrollmentApi.my().then(({ data }) => setEnrollments(data.enrollments));
   }, []);
-
-  useEffect(() => {
-    loadEnrollments();
-  }, [loadEnrollments]);
 
   const fetchCourses = useCallback(async () => {
     setLoading(true);
@@ -43,124 +116,127 @@ const MyCourses = () => {
   }, [search, category, difficulty, sort]);
 
   useEffect(() => {
-    const t = setTimeout(fetchCourses, 300); // debounce search typing
+    const t = setTimeout(fetchCourses, 300);
     return () => clearTimeout(t);
   }, [fetchCourses]);
 
-  const enrollmentByCourseId = new Map(enrollments.map((e) => [e.course._id, e]));
-  const visibleCourses = tab === "enrolled" ? courses.filter((c) => enrollmentByCourseId.has(c._id)) : courses;
+  const enrollmentMap = new Map(enrollments.map((e) => [e.course._id, e]));
+  const visible =
+    tab === "enrolled"
+      ? courses.filter((c) => enrollmentMap.has(c._id))
+      : courses;
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Courses</h1>
-      <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-        Browse the full catalog and jump back into the courses you're enrolled in.
-      </p>
-
-      <div className="mt-5 flex gap-2">
-        <button
-          onClick={() => setTab("all")}
-          className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-            tab === "all"
-              ? "bg-pine text-white dark:bg-pine-light dark:text-pine-dark"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
-          }`}
-        >
-          All Courses
-        </button>
-        <button
-          onClick={() => setTab("enrolled")}
-          className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-            tab === "enrolled"
-              ? "bg-pine text-white dark:bg-pine-light dark:text-pine-dark"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
-          }`}
-        >
-          My Courses ({enrollments.length})
-        </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-ink dark:text-dark-ink">
+            Course Catalog
+          </h1>
+          <p className="mt-0.5 text-sm text-ink-soft dark:text-dark-ink-soft">
+            {courses.length} courses available
+          </p>
+        </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl border border-border bg-surface-sunken p-1 dark:border-dark-border dark:bg-dark-surface">
+        {[
+          { key: "all", label: "All Courses" },
+          { key: "enrolled", label: `My Courses (${enrollments.length})` },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+              tab === t.key
+                ? "bg-surface-raised text-ink shadow-sm dark:bg-dark-surface-raised dark:text-dark-ink"
+                : "text-ink-soft hover:text-ink dark:text-dark-ink-soft dark:hover:text-dark-ink"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="relative sm:col-span-2">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft dark:text-dark-ink-soft" />
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted dark:text-dark-ink-muted"
+          />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search courses by title, description or category"
-            className="w-full rounded-lg border border-border bg-surface-raised py-2 pl-9 pr-3 text-sm text-ink outline-none focus:border-pine dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink"
+            placeholder="Search by title or description…"
+            className="h-9 w-full rounded-lg border border-border bg-surface-raised pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted outline-none transition-colors focus:border-pine-light focus:ring-2 focus:ring-pine-light/15 dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink dark:placeholder:text-dark-ink-muted"
           />
         </div>
-        <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+        <Select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
           <option value="">All categories</option>
           {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </Select>
-        <Select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-          <option value="">All difficulty levels</option>
+        <Select
+          value={difficulty}
+          onChange={(e) => setDifficulty(e.target.value)}
+        >
+          <option value="">All levels</option>
           <option value="Beginner">Beginner</option>
           <option value="Intermediate">Intermediate</option>
           <option value="Advanced">Advanced</option>
         </Select>
       </div>
 
-      <div className="mt-3 flex justify-end">
-        <Select value={sort} onChange={(e) => setSort(e.target.value)} className="w-auto">
+      {/* Sort */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-ink-muted dark:text-dark-ink-muted">
+          {loading ? "Loading…" : `Showing ${visible.length} ${tab === "enrolled" ? "enrolled" : ""} courses`}
+        </p>
+        <Select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="w-auto"
+        >
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
           <option value="title">Title (A–Z)</option>
         </Select>
       </div>
 
-      <div className="mt-8">
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size={28} />
-          </div>
-        ) : visibleCourses.length === 0 ? (
-          <EmptyState
-            title={tab === "enrolled" ? "You haven't enrolled in anything yet" : "No courses match your filters"}
-            description={
-              tab === "enrolled"
-                ? "Switch to 'All Courses' to find a course to enroll in."
-                : "Try a different search term, or clear the category and difficulty filters."
-            }
-          />
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleCourses.map((c) => {
-              const enrollment = enrollmentByCourseId.get(c._id);
-              return (
-                <Link
-                  key={c._id}
-                  to={enrollment ? `/dashboard/my-courses/${c._id}` : `/dashboard/my-courses/${c._id}/details`}
-                >
-                  <Card className="relative h-full transition-shadow hover:shadow-md">
-                    {enrollment && (
-                      <span className="absolute -top-2.5 right-4 inline-flex items-center gap-1 rounded-full bg-pine px-2.5 py-1 text-xs font-medium text-white shadow-sm dark:bg-pine-light dark:text-pine-dark">
-                        <CheckCircle2 size={12} /> Enrolled
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <Badge tone="pine">{c.category}</Badge>
-                      <Badge tone={difficultyTone[c.difficulty]}>{c.difficulty}</Badge>
-                    </div>
-                    <h3 className="mt-3 font-display text-lg font-semibold text-ink dark:text-dark-ink">{c.title}</h3>
-                    <p className="mt-2 line-clamp-2 text-sm text-ink-soft dark:text-dark-ink-soft">{c.description}</p>
-                    <div className="mt-4 flex items-center justify-between text-xs text-ink-soft dark:text-dark-ink-soft">
-                      <span>{c.instructor}</span>
-                      <span>{c.duration}</span>
-                    </div>
-                    {enrollment && <ProgressBar value={enrollment.progress} className="mt-4" />}
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Grid */}
+      {loading ? (
+        <div className="flex min-h-48 items-center justify-center">
+          <Spinner size={28} />
+        </div>
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title={tab === "enrolled" ? "No enrolled courses" : "No courses found"}
+          description={
+            tab === "enrolled"
+              ? "Switch to 'All Courses' to find a course to enroll in."
+              : "Try adjusting your search or filters."
+          }
+        />
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {visible.map((c, i) => (
+            <CourseCard
+              key={c._id}
+              course={c}
+              enrollment={enrollmentMap.get(c._id)}
+              accentIndex={i}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

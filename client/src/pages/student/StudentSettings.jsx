@@ -124,7 +124,7 @@ export default function StudentSettings() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink dark:text-dark-ink sm:text-3xl">
           Account Settings
@@ -135,8 +135,8 @@ export default function StudentSettings() {
       </div>
 
       {/* Profile Details */}
-      <Card>
-        <div className="flex items-center gap-3 border-b border-border/70 pb-4 dark:border-dark-border/70">
+      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
+        <div className="flex items-center gap-3 pb-1">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pine/10 text-pine dark:bg-pine-light/10 dark:text-pine-light">
             <User size={20} />
           </div>
@@ -200,8 +200,8 @@ export default function StudentSettings() {
       </Card>
 
       {/* Password Create / Change */}
-      <Card>
-        <div className="flex items-center gap-3 border-b border-border/70 pb-4 dark:border-dark-border/70">
+      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
+        <div className="flex items-center gap-3 pb-1">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/10 text-amber dark:bg-amber-light/10 dark:text-amber-light">
             <Lock size={20} />
           </div>
@@ -258,8 +258,8 @@ export default function StudentSettings() {
       </Card>
 
       {/* Notification Preferences */}
-      <Card>
-        <div className="flex items-center justify-between border-b border-border/70 pb-4 dark:border-dark-border/70">
+      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
+        <div className="flex items-center justify-between pb-1">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
               <Bell size={20} />
@@ -346,8 +346,8 @@ export default function StudentSettings() {
       </Card>
 
       {/* Theme / Appearance Settings */}
-      <Card>
-        <div className="flex items-center gap-3 border-b border-border/70 pb-4 dark:border-dark-border/70">
+      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
+        <div className="flex items-center gap-3 pb-1">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
             <Palette size={20} />
           </div>
