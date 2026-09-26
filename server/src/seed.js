@@ -549,7 +549,7 @@ const run = async () => {
     submissionDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
     marks: 48,
     feedback:
-      "Outstanding work! Excellent semantic HTML hierarchy, fluid responsive layout across desktop and mobile, and clean CSS code structure.",
+      "Good semantic hierarchy and layout breakpoints. Code is structured cleanly. Minor: review aria-label on navigation toggle.",
     status: "graded",
   });
 
@@ -562,7 +562,7 @@ const run = async () => {
     submissionDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
     marks: 50,
     feedback:
-      "Flawless submission! Exceptional responsive design, crisp typography, and full accessibility compliance.",
+      "Clean responsive implementation and typographic scale. Met all rubric requirements including keyboard navigation.",
     status: "graded",
   });
 
@@ -575,7 +575,7 @@ const run = async () => {
     submissionDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
     marks: 42,
     feedback:
-      "Good responsive behavior. Minor deduction for late submission, but the implementation is solid.",
+      "Solid responsive behavior and asset optimization. Deducted 8 points for late submission per course policy.",
     status: "graded",
   });
 

@@ -6,21 +6,21 @@ import {
   Clock, 
   CheckCircle2, 
   CircleDot, 
-  Download, 
   Printer, 
   Camera, 
   Settings, 
   Calendar, 
-  ExternalLink,
   GraduationCap,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { userApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
-import { Card, Button, Badge, Alert } from "../../components/ui.jsx";
+import { Card, Button, StatusBadge, Alert } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
+import { CertificateCard, CertificateDocument } from "../../components/Certificate.jsx";
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -38,7 +38,7 @@ export default function Profile() {
       const res = await userApi.studentProfile();
       setProfileData(res.data);
     } catch (err) {
-      console.error("Failed to fetch full student profile:", err);
+      console.error("Failed to fetch student profile:", err);
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function Profile() {
       fd.append("avatar", file);
       const res = await userApi.updateProfile(fd);
       setUser(res.data.user);
-      setAvatarSuccess("Profile photo updated successfully!");
+      setAvatarSuccess("Profile photo updated.");
       fetchProfile();
     } catch (err) {
       setAvatarErr(getErrorMessage(err));
@@ -72,9 +72,6 @@ export default function Profile() {
 
   const handlePrintCertificate = (cert) => {
     setActiveCert(cert);
-    setTimeout(() => {
-      window.print();
-    }, 300);
   };
 
   const summary = profileData?.learningSummary || {
@@ -94,15 +91,15 @@ export default function Profile() {
     : null;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pine to-pine-dark p-6 sm:p-8 text-white shadow-lg">
-        <div className="absolute -right-10 -bottom-10 h-48 w-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-32 top-0 h-32 w-32 rounded-full bg-amber/20 blur-xl pointer-events-none" />
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 space-y-12">
+      {/* Header Profile Card */}
+      <div className="relative overflow-hidden rounded-[16px] border border-border-subtle bg-bg-surface p-6 sm:p-8 shadow-card">
+        {/* Subtle architectural gradient contour */}
+        <div className="absolute right-0 top-0 h-48 w-72 bg-gradient-to-bl from-primary-600/10 via-primary-500/5 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <div className="relative group">
-            <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center overflow-hidden rounded-2xl border-4 border-white/20 bg-surface-sunken text-3xl font-bold text-pine shadow-inner dark:bg-dark-surface-sunken">
+          <div className="relative group shrink-0">
+            <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center overflow-hidden rounded-[12px] border border-border-default bg-bg-surface-raised text-2xl font-bold text-text-primary shadow-sm">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={currentUser?.name} className="h-full w-full object-cover" />
               ) : (
@@ -112,10 +109,10 @@ export default function Profile() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber text-pine shadow-md transition-transform hover:scale-110 active:scale-95"
+              className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white shadow-sm transition-transform hover:bg-primary-700 active:scale-95"
               title="Upload new profile picture"
             >
-              <Camera size={16} />
+              <Camera size={14} />
             </button>
             <input
               type="file"
@@ -127,39 +124,40 @@ export default function Profile() {
           </div>
 
           <div className="flex-1 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+              <h1 className="type-h2 text-text-primary">
                 {currentUser?.name}
               </h1>
-              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold capitalize tracking-wide backdrop-blur-sm">
+              <span className="rounded-[4px] border border-primary-500/20 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-700 dark:bg-primary-600/15 dark:text-primary-400">
                 {currentUser?.role}
               </span>
             </div>
 
-            <p className="mt-1 text-sm text-white/80">{currentUser?.email}</p>
+            <p className="mt-1 type-body text-text-secondary">{currentUser?.email}</p>
 
-            <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-white/90">
-              <span className="flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1 backdrop-blur-sm">
-                <GraduationCap size={14} className="text-amber-light" />
+            <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-4 type-body-sm text-text-secondary">
+              <span className="flex items-center gap-1.5">
+                <GraduationCap size={15} className="text-primary-600 dark:text-primary-400" />
                 Track: {currentUser?.department || "Computer Science & Engineering"}
               </span>
-              <span className="flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1 backdrop-blur-sm">
-                <Calendar size={14} className="text-amber-light" />
+              <span className="flex items-center gap-1.5">
+                <Calendar size={14} className="text-text-tertiary" />
                 Joined {new Date(currentUser?.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
               </span>
             </div>
 
+            {/* Quoted bio line: ONLY spot reserved for serif warmth */}
             {currentUser?.bio && (
-              <p className="mt-3 max-w-xl text-xs sm:text-sm text-white/80 italic">
+              <p className="mt-3 max-w-xl font-serif text-sm italic text-text-secondary">
                 "{currentUser.bio}"
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard/settings">
-              <Button tone="ghost" className="border border-white/30 text-white hover:bg-white/15">
-                <Settings size={16} className="mr-1.5" />
+              <Button variant="secondary" size="sm" className="gap-1.5">
+                <Settings size={14} />
                 Edit Settings
               </Button>
             </Link>
@@ -167,237 +165,186 @@ export default function Profile() {
         </div>
 
         {avatarSuccess && (
-          <div className="mt-4 rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-white backdrop-blur">
+          <div className="mt-4 rounded-[6px] border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
             {avatarSuccess}
           </div>
         )}
         {avatarErr && (
-          <div className="mt-4 rounded-lg bg-rose-500/20 px-3 py-2 text-xs font-medium text-white backdrop-blur">
+          <div className="mt-4 rounded-[6px] border border-rose-500/25 bg-rose-500/10 px-3.5 py-2 text-xs font-medium text-rose-700 dark:text-rose-400">
             {avatarErr}
           </div>
         )}
       </div>
 
-      {/* Learning Summary Metric Cards */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <Card className="flex flex-col items-center justify-center p-4 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-            <CheckCircle2 size={20} />
+      {/* Learning Summary Metric Cards (16px gap, 24px padding) */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <Card className="flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 size={18} />
           </div>
-          <span className="mt-2 text-2xl font-bold text-ink dark:text-dark-ink">
+          <span className="mt-3 type-h2 text-text-primary">
             {summary.completedCourses}
           </span>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
+          <span className="type-caption text-text-tertiary">
             Completed
           </span>
         </Card>
 
-        <Card className="flex flex-col items-center justify-center p-4 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/10 text-amber dark:bg-amber-light/10 dark:text-amber-light">
-            <CircleDot size={20} />
+        <Card className="flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <CircleDot size={18} />
           </div>
-          <span className="mt-2 text-2xl font-bold text-ink dark:text-dark-ink">
+          <span className="mt-3 type-h2 text-text-primary">
             {summary.inProgressCourses}
           </span>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
+          <span className="type-caption text-text-tertiary">
             In Progress
           </span>
         </Card>
 
-        <Card className="flex flex-col items-center justify-center p-4 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-sunken text-ink-soft dark:bg-dark-surface-sunken dark:text-dark-ink-soft">
-            <BookOpen size={20} />
+        <Card className="flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <BookOpen size={18} />
           </div>
-          <span className="mt-2 text-2xl font-bold text-ink dark:text-dark-ink">
+          <span className="mt-3 type-h2 text-text-primary">
             {summary.notStartedCourses}
           </span>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
+          <span className="type-caption text-text-tertiary">
             Not Started
           </span>
         </Card>
 
-        <Card className="flex flex-col items-center justify-center p-4 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pine/10 text-pine dark:bg-pine-light/10 dark:text-pine-light">
-            <Sparkles size={20} />
+        <Card className="flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-primary-500/20 bg-primary-50 text-primary-600 dark:bg-primary-600/15 dark:text-primary-400">
+            <Sparkles size={18} />
           </div>
-          <span className="mt-2 text-2xl font-bold text-ink dark:text-dark-ink">
+          <span className="mt-3 type-h2 text-text-primary">
             {summary.totalModulesCompleted}
           </span>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
-            Modules Mastered
+          <span className="type-caption text-text-tertiary">
+            Modules Completed
           </span>
         </Card>
 
-        <Card className="col-span-2 sm:col-span-1 flex flex-col items-center justify-center p-4 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
-            <Clock size={20} />
+        <Card className="col-span-2 sm:col-span-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-default bg-bg-surface-raised text-text-secondary">
+            <Clock size={18} />
           </div>
-          <span className="mt-2 text-2xl font-bold text-ink dark:text-dark-ink">
+          <span className="mt-3 type-h2 text-text-primary">
             {summary.totalLearningHours}h
           </span>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
+          <span className="type-caption text-text-tertiary">
             Learning Hours
           </span>
         </Card>
       </div>
 
-      {/* Certificates Earned Section (MUST HAVE) */}
-      <section className="mt-10">
+      {/* Certificates Earned Section */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Award className="text-amber" size={24} />
-            <h2 className="font-display text-xl font-bold text-ink dark:text-dark-ink">
+          <div className="flex items-center gap-2.5">
+            <Award className="text-primary-600 dark:text-primary-400" size={20} />
+            <h2 className="type-h2 text-text-primary">
               Certificates of Completion
             </h2>
           </div>
-          <span className="text-xs font-semibold text-ink-soft dark:text-dark-ink-soft">
-            {certificates.length} Verified {certificates.length === 1 ? "Award" : "Awards"}
+          <span className="type-caption text-text-tertiary">
+            {certificates.length} Verified {certificates.length === 1 ? "Credential" : "Credentials"}
           </span>
         </div>
 
         {certificates.length === 0 ? (
-          <Card className="mt-4 border-dashed p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber/10 text-amber dark:bg-amber-light/10 dark:text-amber-light">
-              <Award size={28} />
+          <Card className="border-dashed p-10 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[10px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+              <Award size={24} />
             </div>
-            <h3 className="mt-3 font-display text-base font-semibold text-ink dark:text-dark-ink">
+            <h3 className="mt-3 type-h3 text-text-primary">
               No certificates earned yet
             </h3>
-            <p className="mx-auto mt-1 max-w-md text-xs sm:text-sm text-ink-soft dark:text-dark-ink-soft">
-              Complete 100% of all course modules to earn an official accredited Ridgeline Completion Certificate!
+            <p className="mx-auto mt-1 max-w-md type-body-sm text-text-secondary">
+              Complete all course modules to generate your verified completion certificate.
             </p>
-            <div className="mt-4">
+            <div className="mt-5">
               <Link to="/dashboard/my-courses">
-                <Button tone="pine" size="sm">
-                  Explore Courses
+                <Button variant="primary" size="sm">
+                  View Course Catalog
                 </Button>
               </Link>
             </div>
           </Card>
         ) : (
-          <div className="mt-4 grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             {certificates.map((cert) => (
-              <div
+              <CertificateCard
                 key={cert.id}
-                className="relative overflow-hidden rounded-2xl border border-amber/30 bg-gradient-to-br from-amber/5 via-surface to-surface-raised p-6 shadow-md transition-shadow hover:shadow-lg dark:border-amber-light/30 dark:from-amber-light/5 dark:via-dark-surface dark:to-dark-surface-raised"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/15 text-amber dark:text-amber-light">
-                      <ShieldCheck size={22} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold tracking-wider text-amber uppercase dark:text-amber-light">
-                        Verified Certificate
-                      </span>
-                      <h3 className="font-display text-base font-bold text-ink dark:text-dark-ink line-clamp-1">
-                        {cert.courseTitle}
-                      </h3>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-1.5 border-t border-b border-border/60 py-3 text-xs dark:border-dark-border/60">
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft dark:text-dark-ink-soft">Awarded To:</span>
-                    <span className="font-semibold text-ink dark:text-dark-ink">{cert.studentName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft dark:text-dark-ink-soft">Credential ID:</span>
-                    <span className="font-mono font-medium text-ink-soft dark:text-dark-ink-soft">{cert.id}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft dark:text-dark-ink-soft">Issued Date:</span>
-                    <span className="text-ink dark:text-dark-ink">
-                      {new Date(cert.issueDate).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-[11px] text-ink-soft dark:text-dark-ink-soft">
-                    100% Curriculum Completed
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      tone="secondary"
-                      onClick={() => handlePrintCertificate(cert)}
-                      className="gap-1.5"
-                    >
-                      <Printer size={14} /> Print Certificate
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                cert={cert}
+                onPrint={handlePrintCertificate}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* Learning History / Transcript Table (MUST HAVE) */}
-      <section className="mt-12">
+      {/* Learning History / Transcript Table */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="text-pine dark:text-amber-light" size={24} />
-            <h2 className="font-display text-xl font-bold text-ink dark:text-dark-ink">
-              Learning Transcript & Course History
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="text-primary-600 dark:text-primary-400" size={20} />
+            <h2 className="type-h2 text-text-primary">
+              Academic Transcript & Course History
             </h2>
           </div>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft">
-            {history.length} enrolled courses
+          <span className="type-caption text-text-tertiary">
+            {history.length} enrolled {history.length === 1 ? "course" : "courses"}
           </span>
         </div>
 
         {history.length === 0 ? (
-          <Card className="mt-4 p-8 text-center">
-            <p className="text-sm text-ink-soft dark:text-dark-ink-soft">
-              You haven't enrolled in any courses yet.
+          <Card className="p-10 text-center">
+            <p className="type-body text-text-secondary">
+              No course enrollments on record.
             </p>
             <div className="mt-4">
               <Link to="/dashboard/my-courses">
-                <Button tone="pine" size="sm">Browse Course Catalog</Button>
+                <Button variant="primary" size="sm">Browse Catalog</Button>
               </Link>
             </div>
           </Card>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-xl border border-border bg-surface shadow-sm dark:border-dark-border dark:bg-dark-surface">
+          <div className="overflow-hidden rounded-[10px] border border-border-subtle bg-bg-surface shadow-card">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-surface-sunken/60 text-xs font-semibold text-ink-soft uppercase dark:border-dark-border dark:bg-dark-surface-sunken/60 dark:text-dark-ink-soft">
+              <table className="w-full text-left type-body">
+                <thead className="border-b border-border-subtle bg-bg-surface-raised text-xs font-semibold uppercase tracking-wider text-text-tertiary">
                   <tr>
                     <th className="px-5 py-3.5">Course</th>
                     <th className="px-5 py-3.5">Track / Category</th>
-                    <th className="px-5 py-3.5">Enrolled Date</th>
+                    <th className="px-5 py-3.5">Enrolled</th>
                     <th className="px-5 py-3.5">Progress</th>
                     <th className="px-5 py-3.5">Status</th>
                     <th className="px-5 py-3.5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/60 dark:divide-dark-border/60">
+                <tbody className="divide-y divide-border-subtle">
                   {history.map((record) => {
                     const course = record.course || {};
                     const isCompleted = record.status === "completed" || record.progress >= 100;
                     const isInProgress = record.progress > 0 && !isCompleted;
+                    const statusKey = isCompleted ? "completed" : isInProgress ? "in-progress" : "upcoming";
 
                     return (
-                      <tr key={record._id} className="transition-colors hover:bg-surface-sunken/40 dark:hover:bg-dark-surface-sunken/40">
-                        <td className="px-5 py-4 font-semibold text-ink dark:text-dark-ink">
+                      <tr key={record._id} className="transition-colors hover:bg-bg-surface-raised/50">
+                        <td className="px-5 py-4 font-medium text-text-primary">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-pine/10 text-pine dark:bg-pine-light/10 dark:text-pine-light">
-                              <BookOpen size={18} />
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+                              <BookOpen size={15} />
                             </div>
                             <span className="line-clamp-1">{course.title || "Course"}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-xs text-ink-soft dark:text-dark-ink-soft font-medium">
+                        <td className="px-5 py-4 type-body-sm text-text-secondary">
                           {course.category || "General"}
                         </td>
-                        <td className="px-5 py-4 text-xs text-ink-soft dark:text-dark-ink-soft">
+                        <td className="px-5 py-4 type-body-sm text-text-secondary">
                           {new Date(record.enrollmentDate).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -406,25 +353,19 @@ export default function Profile() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="w-32">
-                            <div className="flex justify-between text-[11px] font-medium text-ink-soft dark:text-dark-ink-soft mb-1">
-                              <span>{record.completedModules?.length || 0} modules</span>
+                            <div className="flex justify-between type-caption text-text-secondary mb-1">
+                              <span>{record.completedModules?.length || 0} mods</span>
                               <span>{record.progress}%</span>
                             </div>
                             <ProgressBar value={record.progress} />
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          {isCompleted ? (
-                            <Badge tone="pine">Completed</Badge>
-                          ) : isInProgress ? (
-                            <Badge tone="amber">In Progress</Badge>
-                          ) : (
-                            <Badge tone="neutral">Not Started</Badge>
-                          )}
+                          <StatusBadge status={statusKey} />
                         </td>
                         <td className="px-5 py-4 text-right">
                           <Link to={`/dashboard/my-courses/${course._id}`}>
-                            <Button size="xs" tone="secondary">
+                            <Button size="xs" variant="secondary">
                               {isCompleted ? "Review" : "Continue"}
                             </Button>
                           </Link>
@@ -439,58 +380,26 @@ export default function Profile() {
         )}
       </section>
 
-      {/* Hidden Print Certificate Modal / View */}
+      {/* Official Certificate Modal View */}
       {activeCert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 print:p-0 print:bg-white print:static">
-          <div className="relative w-full max-w-3xl rounded-3xl border-8 border-double border-amber-600 bg-white p-10 text-center text-slate-800 shadow-2xl print:border-none print:shadow-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm print:p-0 print:bg-white print:static">
+          <div className="relative flex flex-col items-center max-w-3xl w-full">
             <button
               onClick={() => setActiveCert(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 print:hidden text-lg font-bold"
+              className="absolute -top-10 right-0 text-text-secondary hover:text-white print:hidden transition-colors"
+              aria-label="Close modal"
             >
-              ✕
+              <X size={24} />
             </button>
 
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              <Award size={48} />
-            </div>
+            <CertificateDocument cert={activeCert} />
 
-            <p className="mt-4 text-xs font-bold tracking-widest text-amber-600 uppercase">
-              Official Certificate of Mastery
-            </p>
-            <h2 className="mt-2 font-display text-4xl font-extrabold text-slate-900">
-              Certificate of Completion
-            </h2>
-
-            <p className="mt-6 text-sm text-slate-500">This is to certify that</p>
-            <p className="mt-2 font-display text-3xl font-bold text-slate-800 underline decoration-amber-400 decoration-2 underline-offset-8">
-              {activeCert.studentName}
-            </p>
-
-            <p className="mt-6 text-sm text-slate-500">has successfully completed all requirements for</p>
-            <h3 className="mt-2 text-2xl font-bold text-slate-900">
-              {activeCert.courseTitle}
-            </h3>
-
-            <div className="mt-8 flex justify-between border-t border-slate-200 pt-6 text-xs text-slate-500">
-              <div>
-                <p className="font-semibold text-slate-700">Issued On</p>
-                <p>{new Date(activeCert.issueDate).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-700">Ridgeline LMS</p>
-                <p className="italic">Verified Digital Credential</p>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-700">Credential ID</p>
-                <p className="font-mono">{activeCert.id}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-center gap-3 print:hidden">
-              <Button tone="pine" onClick={() => window.print()}>
-                <Printer size={16} className="mr-1.5" /> Print Now
+            <div className="mt-6 flex items-center gap-3 print:hidden">
+              <Button variant="primary" onClick={() => window.print()} className="gap-2">
+                <Printer size={16} />
+                Print Credential
               </Button>
-              <Button tone="secondary" onClick={() => setActiveCert(null)}>
+              <Button variant="secondary" onClick={() => setActiveCert(null)}>
                 Close
               </Button>
             </div>

@@ -1,68 +1,58 @@
 import React, { useState } from "react";
-import { 
-  User, 
-  Lock, 
-  Bell, 
-  Palette, 
-  Check, 
-  Moon, 
-  Sun, 
-  ShieldCheck, 
-  Save 
-} from "lucide-react";
+import { User, Lock, Bell, Palette, Moon, Sun, Save, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
 import { userApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
-import { Card, Input, Textarea, Button, Alert } from "../../components/ui.jsx";
+import { Card, Button, Input, Textarea, Alert } from "../../components/ui.jsx";
 
 export default function StudentSettings() {
   const { user, setUser } = useAuth();
   const { dark, toggleDark } = useTheme();
 
-  // Profile State
+  // Profile Form State
   const [name, setName] = useState(user?.name || "");
-  const [department, setDepartment] = useState(user?.department || "Computer Science & Engineering");
+  const [department, setDepartment] = useState(user?.department || "");
   const [bio, setBio] = useState(user?.bio || "");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [profileErr, setProfileErr] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
 
-  // Password State
+  // Password Form State
   const [pwForm, setPwForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [savingPw, setSavingPw] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
   const [pwErr, setPwErr] = useState("");
-  const [savingPw, setSavingPw] = useState(false);
 
-  // Notifications State
+  // Notification Preferences State
   const [notifications, setNotifications] = useState({
     emailNotifications: user?.notificationPreferences?.emailNotifications ?? true,
     assignmentAlerts: user?.notificationPreferences?.assignmentAlerts ?? true,
     gradeAlerts: user?.notificationPreferences?.gradeAlerts ?? true,
   });
+  const [savingNotif, setSavingNotif] = useState(false);
   const [notifMsg, setNotifMsg] = useState("");
   const [notifErr, setNotifErr] = useState("");
-  const [savingNotif, setSavingNotif] = useState(false);
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    setProfileErr("");
     setProfileMsg("");
+    setProfileErr("");
     setSavingProfile(true);
 
     try {
       const fd = new FormData();
-      fd.append("name", name.trim());
-      fd.append("department", department.trim());
-      fd.append("bio", bio.trim());
+      fd.append("name", name);
+      fd.append("department", department);
+      fd.append("bio", bio);
 
       const res = await userApi.updateProfile(fd);
       setUser(res.data.user);
-      setProfileMsg("Profile details saved successfully.");
+      setProfileMsg("Profile updated successfully.");
     } catch (err) {
       setProfileErr(getErrorMessage(err));
     } finally {
@@ -72,13 +62,8 @@ export default function StudentSettings() {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    setPwErr("");
     setPwMsg("");
-
-    if (pwForm.newPassword.length < 6) {
-      setPwErr("New password must be at least 6 characters.");
-      return;
-    }
+    setPwErr("");
 
     if (pwForm.newPassword !== pwForm.confirmPassword) {
       setPwErr("New passwords do not match.");
@@ -87,13 +72,20 @@ export default function StudentSettings() {
 
     setSavingPw(true);
     try {
-      const res = await userApi.changePassword({
-        currentPassword: pwForm.currentPassword,
-        newPassword: pwForm.newPassword,
-      });
-      setPwMsg(res.data.message || "Your password has been updated.");
+      if (user?.hasPassword) {
+        await userApi.changePassword({
+          currentPassword: pwForm.currentPassword,
+          newPassword: pwForm.newPassword,
+        });
+        setPwMsg("Password updated successfully.");
+      } else {
+        await userApi.createPassword({
+          password: pwForm.newPassword,
+        });
+        setPwMsg("Password created successfully.");
+        setUser({ ...user, hasPassword: true });
+      }
       setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setUser((prev) => (prev ? { ...prev, hasPassword: true } : prev));
     } catch (err) {
       setPwErr(getErrorMessage(err));
     } finally {
@@ -106,14 +98,12 @@ export default function StudentSettings() {
   };
 
   const handleSaveNotifications = async () => {
-    setNotifErr("");
     setNotifMsg("");
+    setNotifErr("");
     setSavingNotif(true);
 
     try {
-      const fd = new FormData();
-      fd.append("notificationPreferences", JSON.stringify(notifications));
-      const res = await userApi.updateProfile(fd);
+      const res = await userApi.updateNotificationPreferences(notifications);
       setUser(res.data.user);
       setNotifMsg("Notification preferences updated.");
     } catch (err) {
@@ -124,35 +114,35 @@ export default function StudentSettings() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-12">
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink dark:text-dark-ink sm:text-3xl">
+        <h1 className="type-display text-text-primary">
           Account Settings
         </h1>
-        <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-          Manage your personal profile, notification preferences, security credentials, and app display.
+        <p className="mt-1 type-body text-text-secondary">
+          Profile information, academic credentials, security, and interface preferences
         </p>
       </div>
 
-      {/* Profile Details */}
-      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
-        <div className="flex items-center gap-3 pb-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pine/10 text-pine dark:bg-pine-light/10 dark:text-pine-light">
-            <User size={20} />
+      {/* Profile Details (24px padding, 16px gap) */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3.5 pb-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <User size={18} />
           </div>
           <div>
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
+            <h2 className="type-h3 text-text-primary">
               Profile Information
             </h2>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-              Update your basic account details and academic track.
+            <p className="type-body-sm text-text-secondary">
+              Update academic department and public institutional details
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleProfileSubmit} className="mt-5 space-y-4">
-          {profileErr && <Alert>{profileErr}</Alert>}
-          {profileMsg && <Alert tone="pine">{profileMsg}</Alert>}
+        <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
+          {profileErr && <Alert tone="danger">{profileErr}</Alert>}
+          {profileMsg && <Alert tone="success">{profileMsg}</Alert>}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -165,61 +155,57 @@ export default function StudentSettings() {
               label="Email Address"
               value={user?.email || ""}
               disabled
-              className="bg-surface-sunken opacity-70 cursor-not-allowed dark:bg-dark-surface-sunken"
+              hint="Managed by institutional directory."
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink dark:text-dark-ink">
-              Department / Academic Track
-            </label>
-            <input
-              type="text"
+            <Input
+              label="Department / Academic Track"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              placeholder="e.g. Computer Science & Engineering, Full Stack Web Development"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-soft/60 focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+              placeholder="e.g. Computer Science & Engineering"
             />
           </div>
 
           <Textarea
-            label="Short Bio"
+            label="Academic Bio"
             rows={3}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="Tell fellow students and instructors about yourself and your career goals..."
+            placeholder="Brief description of your research focus or academic interests"
           />
 
           <div className="flex justify-end pt-2">
-            <Button type="submit" tone="pine" disabled={savingProfile}>
-              <Save size={16} className="mr-1.5" />
-              {savingProfile ? "Saving..." : "Save Profile Details"}
+            <Button type="submit" variant="primary" disabled={savingProfile}>
+              <Save size={15} className="mr-1.5" />
+              {savingProfile ? "Saving…" : "Save Profile"}
             </Button>
           </div>
         </form>
       </Card>
 
-      {/* Password Create / Change */}
-      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
-        <div className="flex items-center gap-3 pb-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/10 text-amber dark:bg-amber-light/10 dark:text-amber-light">
-            <Lock size={20} />
+      {/* Security / Password */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3.5 pb-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <Lock size={18} />
           </div>
           <div>
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
+            <h2 className="type-h3 text-text-primary">
               {user?.hasPassword ? "Change Password" : "Create Password"}
             </h2>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
+            <p className="type-body-sm text-text-secondary">
               {user?.hasPassword
-                ? "Ensure your account stays secure by choosing a strong password."
-                : "Your account was created with Google Sign-In. Create a password to also log in with your email."}
+                ? "Update your login credentials with a strong password"
+                : "Add a password to enable email authentication alongside Google Sign-In"}
             </p>
           </div>
         </div>
 
-        <form onSubmit={handlePasswordSubmit} className="mt-5 space-y-4">
-          {pwErr && <Alert>{pwErr}</Alert>}
-          {pwMsg && <Alert tone="pine">{pwMsg}</Alert>}
+        <form onSubmit={handlePasswordSubmit} className="mt-6 space-y-4">
+          {pwErr && <Alert tone="danger">{pwErr}</Alert>}
+          {pwMsg && <Alert tone="success">{pwMsg}</Alert>}
 
           {user?.hasPassword && (
             <Input
@@ -249,85 +235,83 @@ export default function StudentSettings() {
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button type="submit" tone="secondary" disabled={savingPw}>
-              <ShieldCheck size={16} className="mr-1.5" />
-              {savingPw ? "Saving..." : user?.hasPassword ? "Update Password" : "Create Password"}
+            <Button type="submit" variant="secondary" disabled={savingPw}>
+              <ShieldCheck size={15} className="mr-1.5" />
+              {savingPw ? "Saving…" : user?.hasPassword ? "Update Password" : "Create Password"}
             </Button>
           </div>
         </form>
       </Card>
 
       {/* Notification Preferences */}
-      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
-        <div className="flex items-center justify-between pb-1">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
-              <Bell size={20} />
-            </div>
-            <div>
-              <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-                Notification Preferences
-              </h2>
-              <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-                Choose what communications and alerts you receive.
-              </p>
-            </div>
+      <Card className="p-6">
+        <div className="flex items-center gap-3.5 pb-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <Bell size={18} />
+          </div>
+          <div>
+            <h2 className="type-h3 text-text-primary">
+              Notification Preferences
+            </h2>
+            <p className="type-body-sm text-text-secondary">
+              Configure course communications and deadline alerts
+            </p>
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
-          {notifErr && <Alert>{notifErr}</Alert>}
-          {notifMsg && <Alert tone="pine">{notifMsg}</Alert>}
+        <div className="mt-6 space-y-4">
+          {notifErr && <Alert tone="danger">{notifErr}</Alert>}
+          {notifMsg && <Alert tone="success">{notifMsg}</Alert>}
 
-          <div className="divide-y divide-border/60 dark:divide-dark-border/60">
-            <div className="flex items-center justify-between py-3">
+          <div className="divide-y divide-border-subtle">
+            <div className="flex items-center justify-between py-3.5">
               <div>
-                <p className="text-sm font-medium text-ink dark:text-dark-ink">
+                <p className="type-body font-medium text-text-primary">
                   Email Notifications
                 </p>
-                <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-                  Receive email notifications for course announcements and direct messages.
+                <p className="type-body-sm text-text-secondary">
+                  Course announcements and direct instructor messages
                 </p>
               </div>
               <input
                 type="checkbox"
                 checked={notifications.emailNotifications}
                 onChange={() => handleToggleNotif("emailNotifications")}
-                className="h-4 w-4 rounded border-border text-pine focus:ring-pine"
+                className="h-4 w-4 rounded border-border-default text-primary-600 accent-primary-600"
               />
             </div>
 
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3.5">
               <div>
-                <p className="text-sm font-medium text-ink dark:text-dark-ink">
+                <p className="type-body font-medium text-text-primary">
                   Assignment Alerts
                 </p>
-                <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-                  Get notified when a new assignment is posted or deadlines are near.
+                <p className="type-body-sm text-text-secondary">
+                  Notifications when assignments are published or deadlines approach
                 </p>
               </div>
               <input
                 type="checkbox"
                 checked={notifications.assignmentAlerts}
                 onChange={() => handleToggleNotif("assignmentAlerts")}
-                className="h-4 w-4 rounded border-border text-pine focus:ring-pine"
+                className="h-4 w-4 rounded border-border-default text-primary-600 accent-primary-600"
               />
             </div>
 
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3.5">
               <div>
-                <p className="text-sm font-medium text-ink dark:text-dark-ink">
-                  Grade & Feedback Alerts
+                <p className="type-body font-medium text-text-primary">
+                  Grade & Evaluation Alerts
                 </p>
-                <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-                  Instant alerts whenever an instructor reviews and scores your submission.
+                <p className="type-body-sm text-text-secondary">
+                  Alerts when an instructor reviews and scores your submission
                 </p>
               </div>
               <input
                 type="checkbox"
                 checked={notifications.gradeAlerts}
                 onChange={() => handleToggleNotif("gradeAlerts")}
-                className="h-4 w-4 rounded border-border text-pine focus:ring-pine"
+                className="h-4 w-4 rounded border-border-default text-primary-600 accent-primary-600"
               />
             </div>
           </div>
@@ -335,47 +319,47 @@ export default function StudentSettings() {
           <div className="flex justify-end pt-2">
             <Button
               onClick={handleSaveNotifications}
-              tone="pine"
+              variant="primary"
               disabled={savingNotif}
             >
-              <Save size={16} className="mr-1.5" />
-              {savingNotif ? "Saving..." : "Save Preferences"}
+              <Save size={15} className="mr-1.5" />
+              {savingNotif ? "Saving…" : "Save Preferences"}
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* Theme / Appearance Settings */}
-      <Card className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6">
-        <div className="flex items-center gap-3 pb-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
-            <Palette size={20} />
+      {/* Appearance Settings */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3.5 pb-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <Palette size={18} />
           </div>
           <div>
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-              Appearance & Theme
+            <h2 className="type-h3 text-text-primary">
+              Display & Theme
             </h2>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-              Customize the look and feel of Ridgeline LMS for your study sessions.
+            <p className="type-body-sm text-text-secondary">
+              Theme mode selection for interface contrast
             </p>
           </div>
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-ink dark:text-dark-ink">
-              Theme Mode: <span className="capitalize">{dark ? "Dark Theme" : "Light Theme"}</span>
+            <p className="type-body font-medium text-text-primary">
+              Current Theme: <span className="capitalize">{dark ? "Dark" : "Light"}</span>
             </p>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-              Dark mode reduces eye strain during late-night studying.
+            <p className="type-body-sm text-text-secondary">
+              {dark ? "Elevated slate dark theme active" : "Clean daylight theme active"}
             </p>
           </div>
           <button
             onClick={toggleDark}
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface-sunken px-4 py-2 text-sm font-medium text-ink shadow-sm transition-all hover:bg-surface-raised dark:border-dark-border dark:bg-dark-surface-sunken dark:text-dark-ink"
+            className="flex items-center gap-2 rounded-[6px] border border-border-default bg-bg-surface-raised px-4 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-bg-surface"
           >
-            {dark ? <Sun size={18} className="text-amber" /> : <Moon size={18} className="text-pine" />}
-            {dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            {dark ? <Sun size={16} /> : <Moon size={16} />}
+            {dark ? "Switch to Light" : "Switch to Dark"}
           </button>
         </div>
       </Card>

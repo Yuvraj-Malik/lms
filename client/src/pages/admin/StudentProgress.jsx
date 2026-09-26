@@ -166,17 +166,18 @@ export default function StudentProgress() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-xl font-bold text-ink dark:text-dark-ink sm:text-2xl">
+                <h1 className="type-h2 text-text-primary">
                   {student.name}
                 </h1>
-                <Badge tone={student.isActive ? "pine" : "clay"}>
-                  {student.isActive ? "Active Account" : "Deactivated"}
-                </Badge>
+                <StatusBadge
+                  status={student.isActive ? "active" : "deactivated"}
+                  label={student.isActive ? "Active Account" : "Deactivated"}
+                />
               </div>
-              <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{student.email}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-soft dark:text-dark-ink-soft">
-                <span className="flex items-center gap-1 font-medium text-ink dark:text-dark-ink">
-                  <GraduationCap size={14} className="text-pine dark:text-amber-light" />
+              <p className="type-body-sm text-text-secondary">{student.email}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
+                <span className="flex items-center gap-1 font-medium text-text-primary">
+                  <GraduationCap size={14} className="text-primary-600 dark:text-primary-400" />
                   {student.department || "Computer Science & Engineering"}
                 </span>
                 <span>&bull;</span>
@@ -195,12 +196,12 @@ export default function StudentProgress() {
         </div>
       </Card>
 
-      {/* Enrolled Courses & Manual Enrollment (MUST HAVE) */}
+      {/* Enrolled Courses & Manual Enrollment */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <BookOpen size={20} className="text-pine dark:text-amber-light" />
-            <h2 className="font-display text-lg font-bold text-ink dark:text-dark-ink">
+            <BookOpen size={18} className="text-primary-600 dark:text-primary-400" />
+            <h2 className="type-h3 text-text-primary">
               Enrolled Courses ({enrollments.length})
             </h2>
           </div>
@@ -246,36 +247,37 @@ export default function StudentProgress() {
               const isInProgress = e.progress > 0 && !isCompleted;
 
               return (
-                <Card key={e._id} className="p-4 space-y-3">
+                <Card key={e._id} className="p-6 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-semibold text-amber uppercase dark:text-amber-light">
-                        {course.category || "Track"}
+                      <span className="type-caption text-text-tertiary">
+                        {course.category || "General"}
                       </span>
-                      <h3 className="font-display text-sm font-bold text-ink dark:text-dark-ink line-clamp-1">
+                      <h3 className="type-h3 text-text-primary line-clamp-1">
                         {course.title || "Course"}
                       </h3>
-                      <p className="text-[11px] text-ink-soft dark:text-dark-ink-soft">
+                      <p className="type-body-sm text-text-secondary">
                         Enrolled {new Date(e.enrollmentDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge tone={isCompleted ? "pine" : isInProgress ? "amber" : "neutral"}>
-                      {isCompleted ? "Completed" : isInProgress ? "In Progress" : "Not Started"}
-                    </Badge>
+                    <StatusBadge
+                      status={isCompleted ? "completed" : isInProgress ? "in-progress" : "upcoming"}
+                      label={isCompleted ? "Completed" : isInProgress ? "In Progress" : "Not Started"}
+                    />
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-xs font-semibold text-ink-soft dark:text-dark-ink-soft mb-1">
+                    <div className="flex justify-between type-caption text-text-secondary mb-1">
                       <span>{e.completedModules?.length || 0} modules finished</span>
-                      <span>{e.progress}%</span>
+                      <span className="font-semibold text-primary-600 dark:text-primary-400">{e.progress}%</span>
                     </div>
-                    <ProgressBar value={e.progress} />
+                    <ProgressBar value={e.progress} showLabel={false} />
                   </div>
 
-                  <div className="flex justify-end pt-2 border-t border-border/60 dark:border-dark-border/60">
+                  <div className="flex justify-end pt-2 border-t border-border-subtle">
                     <Button
                       size="xs"
-                      tone="clay"
+                      variant="danger"
                       onClick={() => handleUnenrollCourse(course._id, course.title)}
                       className="gap-1"
                     >
@@ -289,12 +291,12 @@ export default function StudentProgress() {
         )}
       </section>
 
-      {/* Assignment Submissions Table with Reset & Extend Deadline (MUST HAVE) */}
+      {/* Assignment Submissions Table with Reset & Extend Deadline */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Award size={20} className="text-pine dark:text-amber-light" />
-            <h2 className="font-display text-lg font-bold text-ink dark:text-dark-ink">
+            <Award size={18} className="text-primary-600 dark:text-primary-400" />
+            <h2 className="type-h3 text-text-primary">
               Assignment Submissions ({submissions.length})
             </h2>
           </div>
@@ -391,25 +393,25 @@ export default function StudentProgress() {
 
       {/* Reset Submission Confirmation Modal */}
       {resetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl dark:bg-dark-surface border border-border dark:border-dark-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[12px] bg-bg-surface-raised p-6 shadow-raised border border-border-subtle">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/15 text-amber">
-                <RotateCcw size={20} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-amber-500/20 bg-amber-500/10 text-amber-500">
+                <RotateCcw size={18} />
               </div>
-              <h3 className="font-display text-base font-bold text-ink dark:text-dark-ink">
+              <h3 className="type-h3 text-text-primary">
                 Reset Student Submission
               </h3>
             </div>
-            <p className="mt-3 text-xs sm:text-sm text-ink-soft dark:text-dark-ink-soft leading-relaxed">
+            <p className="mt-3 type-body-sm text-text-secondary leading-relaxed">
               Resetting this submission will delete the existing student work and score, allowing{" "}
               <strong>{student.name}</strong> to make a fresh submission for <strong>{resetConfirm.assignment?.title}</strong>.
             </p>
             <div className="mt-6 flex justify-end gap-2.5">
-              <Button size="sm" tone="secondary" onClick={() => setResetConfirm(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setResetConfirm(null)}>
                 Cancel
               </Button>
-              <Button size="sm" tone="clay" onClick={handleResetSubmission}>
+              <Button size="sm" variant="danger" onClick={handleResetSubmission}>
                 Confirm Reset
               </Button>
             </div>
@@ -419,17 +421,17 @@ export default function StudentProgress() {
 
       {/* Extend Deadline Modal */}
       {extendModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl dark:bg-dark-surface border border-border dark:border-dark-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[12px] bg-bg-surface-raised p-6 shadow-raised border border-border-subtle">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pine/15 text-pine dark:bg-pine-light/15 dark:text-pine-light">
-                <CalendarPlus size={20} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-primary-500/20 bg-primary-50 text-primary-600 dark:bg-primary-600/15 dark:text-primary-400">
+                <CalendarPlus size={18} />
               </div>
-              <h3 className="font-display text-base font-bold text-ink dark:text-dark-ink">
+              <h3 className="type-h3 text-text-primary">
                 Extend Assignment Deadline
               </h3>
             </div>
-            <p className="mt-2 text-xs text-ink-soft dark:text-dark-ink-soft">
+            <p className="mt-2 type-body-sm text-text-secondary">
               Set a new deadline for <strong>{extendModal.title}</strong>:
             </p>
 
@@ -438,15 +440,15 @@ export default function StudentProgress() {
                 type="datetime-local"
                 value={newDeadline}
                 onChange={(e) => setNewDeadline(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+                className="w-full rounded-[6px] border border-border-default bg-bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary-500 focus:outline-none"
               />
             </div>
 
             <div className="mt-6 flex justify-end gap-2.5">
-              <Button size="sm" tone="secondary" onClick={() => setExtendModal(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setExtendModal(null)}>
                 Cancel
               </Button>
-              <Button size="sm" tone="pine" onClick={handleExtendDeadline} disabled={!newDeadline}>
+              <Button size="sm" variant="primary" onClick={handleExtendDeadline} disabled={!newDeadline}>
                 Save Extended Deadline
               </Button>
             </div>

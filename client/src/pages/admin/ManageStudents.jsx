@@ -20,23 +20,23 @@ const ManageStudents = () => {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Students</h1>
-      <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">{students.length} registered</p>
+      <h1 className="type-display font-semibold text-text-primary">Students</h1>
+      <p className="mt-1 type-body-sm text-text-secondary">{students.length} registered students</p>
 
       {students.length === 0 ? (
         <EmptyState title="No students yet" description="Students will appear here once they register." />
       ) : (
-        <div className="mt-6 space-y-2">
+        <div className="mt-6 space-y-3">
           {students.map((s) => (
-            <Link key={s._id} to={`/admin/students/${s._id}`}>
-              <Card className="flex items-center justify-between transition-shadow hover:shadow-md">
+            <Link key={s._id} to={`/admin/students/${s._id}`} className="block">
+              <Card className="p-5 flex items-center justify-between transition-all hover:bg-bg-surface-raised/50 shadow-card">
                 <div>
-                  <p className="text-sm font-medium text-ink dark:text-dark-ink">{s.name}</p>
-                  <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{s.email}</p>
+                  <p className="type-h3 text-text-primary">{s.name}</p>
+                  <p className="type-body-sm text-text-secondary">{s.email}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-ink dark:text-dark-ink">{s.enrollmentCount}</p>
-                  <p className="text-xs text-ink-soft dark:text-dark-ink-soft">enrollments</p>
+                  <p className="type-h3 text-text-primary">{s.enrollmentCount}</p>
+                  <p className="type-caption text-text-tertiary">enrollments</p>
                 </div>
               </Card>
             </Link>

@@ -71,13 +71,13 @@ const AddEditCourse = () => {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">
-        {isEdit ? "Edit course" : "New course"}
+      <h1 className="type-display font-semibold text-text-primary">
+        {isEdit ? "Edit Course" : "New Course"}
       </h1>
 
-      <Card className="mt-6">
+      <Card className="mt-6 p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <Alert>{error}</Alert>}
+          {error && <Alert tone="danger">{error}</Alert>}
 
           <Input label="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <Textarea
@@ -119,16 +119,23 @@ const AddEditCourse = () => {
           </div>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-ink dark:text-dark-ink">Course image</span>
+            <span className="mb-1.5 block type-body-sm font-medium text-text-primary">Course image</span>
             {existingImage && !image && (
-              <img src={existingImage} alt="" className="mb-2 h-28 w-44 rounded-lg object-cover" />
+              <img src={existingImage} alt="" className="mb-2 h-28 w-44 rounded-md object-cover border border-border-subtle" />
             )}
-            <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} className="text-sm" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files[0])}
+              className="type-body-sm text-text-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded-sm file:border file:border-border-default file:bg-bg-surface-raised file:text-text-primary file:type-caption file:cursor-pointer"
+            />
           </label>
 
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save changes" : "Create course"}
-          </Button>
+          <div className="pt-2">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : isEdit ? "Save changes" : "Create course"}
+            </Button>
+          </div>
         </form>
       </Card>
     </div>

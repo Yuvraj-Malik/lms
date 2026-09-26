@@ -1,102 +1,104 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { 
-  BookOpen, 
-  Clock, 
-  AlertCircle, 
-  CheckCircle2, 
-  Award, 
-  Calendar, 
+import {
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
   ArrowUpRight,
-  Filter
+  Filter,
+  Calendar,
+  Layers,
+  Award
 } from "lucide-react";
-import { dashboardApi, submissionApi } from "../../api/endpoints.js";
-import { Card, Badge, Spinner, EmptyState, Button } from "../../components/ui.jsx";
+import { assignmentApi, enrollmentApi } from "../../api/endpoints.js";
+import { Card, Button, StatusBadge, EmptyState, Spinner } from "../../components/ui.jsx";
 
 export default function StudentAssignments() {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all"); // 'all' | 'unsubmitted' | 'submitted' | 'graded'
-  const [pending, setPending] = useState([]);
-  const [overdue, setOverdue] = useState([]);
-  const [mySubmissions, setMySubmissions] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    async function loadData() {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const [dashRes, subRes] = await Promise.all([
-          dashboardApi.student(),
-          submissionApi.my(),
+        const [enrRes, assignRes, subRes] = await Promise.all([
+          enrollmentApi.my(),
+          assignmentApi.myAssignments(),
+          assignmentApi.mySubmissions(),
         ]);
-        setPending(dashRes.data.pendingAssignments || []);
-        setOverdue(dashRes.data.overdueAssignments || []);
-        setMySubmissions(subRes.data.submissions || []);
+
+        setEnrollments(enrRes.data?.enrollments || []);
+        setAssignments(assignRes.data?.assignments || []);
+        setSubmissions(subRes.data?.submissions || []);
       } catch (err) {
-        console.error("Error loading assignments:", err);
+        console.error("Failed to fetch assignment hub data:", err);
       } finally {
         setLoading(false);
       }
-    }
-    loadData();
+    };
+
+    fetchData();
   }, []);
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner size={32} />
+      <div className="flex min-h-64 items-center justify-center">
+        <Spinner size={28} />
       </div>
     );
   }
 
-  // Not Submitted list (Pending + Overdue)
-  const notSubmittedItems = [
-    ...overdue.map((a) => ({
-      ...a,
-      assignmentId: a._id,
-      category: "unsubmitted",
-      isOverdue: true,
-    })),
-    ...pending.map((a) => ({
-      ...a,
-      assignmentId: a._id,
-      category: "unsubmitted",
-      isOverdue: false,
-    })),
-  ];
+  // Map submissions by assignment ID
+  const submissionMap = new Map();
+  submissions.forEach((s) => {
+    const assignId = s.assignment?._id || s.assignment;
+    if (assignId) submissionMap.set(String(assignId), s);
+  });
 
-  // Submitted (Pending Review) list
-  const submittedItems = mySubmissions
-    .filter((s) => s.status === "submitted" || s.status === "late")
-    .map((s) => ({
-      assignmentId: s.assignment?._id,
-      title: s.assignment?.title,
-      course: s.assignment?.course,
-      deadline: s.assignment?.deadline,
-      maximumMarks: s.assignment?.maximumMarks,
-      submissionDate: s.submissionDate,
-      category: "submitted",
-      status: s.status,
-      submissionId: s._id,
-    }));
+  const now = new Date();
 
-  // Graded list
-  const gradedItems = mySubmissions
-    .filter((s) => s.status === "graded")
-    .map((s) => ({
-      assignmentId: s.assignment?._id,
-      title: s.assignment?.title,
-      course: s.assignment?.course,
-      deadline: s.assignment?.deadline,
-      maximumMarks: s.assignment?.maximumMarks,
-      marks: s.marks,
-      feedback: s.feedback,
-      submissionDate: s.submissionDate,
-      category: "graded",
-      status: "graded",
-      submissionId: s._id,
-    }));
+  // Categorize
+  const submittedItems = [];
+  const gradedItems = [];
+  const notSubmittedItems = [];
+  const overdue = [];
 
-  // All Items
+  assignments.forEach((a) => {
+    const s = submissionMap.get(String(a._id));
+    const isPastDeadline = a.deadline && new Date(a.deadline) < now;
+
+    if (s) {
+      if (s.status === "graded") {
+        gradedItems.push({
+          ...a,
+          submission: s,
+          category: "graded",
+          marks: s.marks,
+          feedback: s.feedback,
+        });
+      } else {
+        submittedItems.push({
+          ...a,
+          submission: s,
+          category: "submitted",
+          submissionDate: s.createdAt,
+        });
+      }
+    } else {
+      const item = {
+        ...a,
+        category: "unsubmitted",
+        isOverdue: isPastDeadline,
+      };
+      notSubmittedItems.push(item);
+      if (isPastDeadline) overdue.push(item);
+    }
+  });
+
   const allItems = [...notSubmittedItems, ...submittedItems, ...gradedItems];
 
   // Filter based on active tab
@@ -107,43 +109,43 @@ export default function StudentAssignments() {
   else if (activeTab === "graded") displayedItems = gradedItems;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink dark:text-dark-ink sm:text-3xl">
+          <h1 className="type-display text-text-primary">
             Assignments Hub
           </h1>
-          <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-            Track, complete, and review submissions and marks across all enrolled courses.
+          <p className="mt-1 type-body text-text-secondary">
+            Submissions, deadlines, and evaluations across enrolled courses
           </p>
         </div>
       </div>
 
       {/* Segmented Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-dark-border">
+      <div className="flex gap-1 rounded-[8px] border border-border-subtle bg-bg-surface-raised p-1">
         <button
           onClick={() => setActiveTab("all")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "all"
-              ? "bg-pine text-white dark:bg-pine-light dark:text-dark-surface"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
-          All Assignments ({allItems.length})
+          All ({allItems.length})
         </button>
 
         <button
           onClick={() => setActiveTab("unsubmitted")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "unsubmitted"
-              ? "bg-clay text-white"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
-          <span className="flex h-2 w-2 rounded-full bg-clay animate-pulse" />
-          Not Submitted ({notSubmittedItems.length})
+          <span>Unsubmitted ({notSubmittedItems.length})</span>
           {overdue.length > 0 && (
-            <span className="rounded bg-white/20 px-1 text-[10px] font-bold">
+            <span className="rounded-[4px] bg-rose-500/15 px-1.5 py-0.2 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
               {overdue.length} overdue
             </span>
           )}
@@ -151,10 +153,10 @@ export default function StudentAssignments() {
 
         <button
           onClick={() => setActiveTab("submitted")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "submitted"
-              ? "bg-blue-600 text-white"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
           Submitted ({submittedItems.length})
@@ -162,13 +164,12 @@ export default function StudentAssignments() {
 
         <button
           onClick={() => setActiveTab("graded")}
-          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all ${
             activeTab === "graded"
-              ? "bg-emerald-600 text-white"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
-          <Award size={14} />
           Graded ({gradedItems.length})
         </button>
       </div>
@@ -176,8 +177,8 @@ export default function StudentAssignments() {
       {/* Assignment List */}
       {displayedItems.length === 0 ? (
         <EmptyState
-          title={`No ${activeTab === "all" ? "" : activeTab} assignments found`}
-          description="You're either all caught up or haven't reached this stage yet."
+          title="No assignments found"
+          description="There are no assignments in this category."
         />
       ) : (
         <div className="grid gap-4">
@@ -195,46 +196,41 @@ export default function StudentAssignments() {
                 })
               : "N/A";
 
+            const statusType = isGraded
+              ? "completed"
+              : isSubmitted
+              ? "pending"
+              : isOverdue
+              ? "overdue"
+              : "upcoming";
+
+            const statusLabel = isGraded
+              ? `Score: ${item.marks} / ${item.maximumMarks || 100}`
+              : isSubmitted
+              ? "Submitted · In Review"
+              : isOverdue
+              ? `Overdue · Due ${formattedDeadline}`
+              : `Due ${formattedDeadline}`;
+
             return (
               <Card
-                key={`${item.assignmentId || idx}-${item.category}`}
-                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 transition-shadow hover:shadow-md ${
-                  isOverdue ? "border-l-4 border-l-clay" : ""
+                key={`${item._id || idx}-${item.category}`}
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-6 p-6 transition-all duration-200 hover:border-border-default hover:shadow-raised ${
+                  isOverdue ? "border-l-4 border-l-rose-500" : ""
                 }`}
               >
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
+                <div className="space-y-2 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="type-h3 text-text-primary">
                       {item.title || "Assignment"}
                     </h3>
-
-                    {/* Status Badge */}
-                    {isGraded && (
-                      <Badge tone="pine">
-                        Graded: {item.marks} / {item.maximumMarks || 100} Marks
-                      </Badge>
-                    )}
-                    {isSubmitted && (
-                      <Badge tone="neutral">
-                        Submitted &bull; Pending Review
-                      </Badge>
-                    )}
-                    {isUnsubmitted && isOverdue && (
-                      <Badge tone="clay" className="bg-red-500/10 text-red-600 dark:text-red-400">
-                        Overdue &bull; Due {formattedDeadline}
-                      </Badge>
-                    )}
-                    {isUnsubmitted && !isOverdue && (
-                      <Badge tone="amber">
-                        Upcoming &bull; Due {formattedDeadline}
-                      </Badge>
-                    )}
+                    <StatusBadge status={statusType} label={statusLabel} />
                   </div>
 
-                  <p className="text-xs font-medium text-ink-soft dark:text-dark-ink-soft">
-                    Course: <span className="text-ink dark:text-dark-ink">{item.course?.title || "General"}</span>
+                  <p className="type-body-sm text-text-secondary">
+                    Course: <span className="font-medium text-text-primary">{item.course?.title || "General"}</span>
                     {item.maximumMarks && (
-                      <span className="ml-3 font-semibold text-pine dark:text-amber-light">
+                      <span className="ml-3 text-text-tertiary">
                         Max Marks: {item.maximumMarks}
                       </span>
                     )}
@@ -242,27 +238,27 @@ export default function StudentAssignments() {
 
                   {/* Feedback preview if graded */}
                   {isGraded && item.feedback && (
-                    <div className="mt-2 rounded-lg bg-emerald-50/60 p-2.5 text-xs text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300">
-                      <span className="font-semibold">Instructor Feedback: </span>
+                    <div className="mt-3 rounded-[6px] border border-border-subtle bg-bg-surface-raised p-3 type-body-sm text-text-secondary">
+                      <span className="font-semibold text-text-primary">Instructor Evaluation: </span>
                       "{item.feedback}"
                     </div>
                   )}
 
                   {isSubmitted && item.submissionDate && (
-                    <p className="text-[11px] text-ink-soft dark:text-dark-ink-soft">
-                      Submitted on {new Date(item.submissionDate).toLocaleString()}
+                    <p className="type-caption text-text-tertiary">
+                      Submitted {new Date(item.submissionDate).toLocaleString()}
                     </p>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
-                  <Link to={`/dashboard/assignments/${item.assignmentId}`}>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <Link to={`/dashboard/assignments/${item._id}`}>
                     <Button
                       size="sm"
-                      tone={isUnsubmitted ? (isOverdue ? "clay" : "pine") : "secondary"}
+                      variant={isUnsubmitted ? "primary" : "secondary"}
                       className="gap-1.5"
                     >
-                      {isUnsubmitted ? "Submit Assignment" : isGraded ? "View Evaluation" : "View Submission"}
+                      {isUnsubmitted ? "Submit Work" : isGraded ? "View Grade" : "View Submission"}
                       <ArrowUpRight size={14} />
                     </Button>
                   </Link>

@@ -118,16 +118,16 @@ export default function NotificationBell() {
   const getTypeIcon = (type) => {
     switch (type) {
       case "submission_graded":
-        return <Award size={16} className="text-amber" />;
+        return <Award size={16} className="text-semantic-warning" />;
       case "assignment_new":
-        return <BookOpen size={16} className="text-pine" />;
+        return <BookOpen size={16} className="text-primary-500" />;
       case "deadline_approaching":
-        return <AlertCircle size={16} className="text-clay" />;
+        return <AlertCircle size={16} className="text-semantic-danger" />;
       case "module_completed":
       case "course_completed":
-        return <Award size={16} className="text-pine-light" />;
+        return <Award size={16} className="text-semantic-success" />;
       default:
-        return <Info size={16} className="text-ink-soft dark:text-dark-ink-soft" />;
+        return <Info size={16} className="text-text-tertiary" />;
     }
   };
 
@@ -136,23 +136,23 @@ export default function NotificationBell() {
       <button
         onClick={handleToggle}
         aria-label="View notifications"
-        className="relative rounded-full p-2 text-ink-soft transition-colors hover:bg-surface-sunken hover:text-ink dark:text-dark-ink-soft dark:hover:bg-dark-surface-sunken dark:hover:text-dark-ink"
+        className="relative rounded-md p-2 text-text-secondary transition-colors hover:bg-bg-surface-raised hover:text-text-primary"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-clay px-1 text-[10px] font-bold text-white shadow-sm animate-pulse">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-semantic-danger px-1 text-[10px] font-bold text-white shadow-sm">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl border border-border bg-surface shadow-xl z-50 overflow-hidden dark:border-dark-border dark:bg-dark-surface">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 dark:border-dark-border">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-md border border-border-subtle bg-bg-surface-raised shadow-raised z-50 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3 bg-bg-surface">
             <div className="flex items-center gap-2">
-              <h3 className="font-display text-sm font-semibold text-ink dark:text-dark-ink">Notifications</h3>
+              <h3 className="type-h3 text-text-primary">Notifications</h3>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-ink-soft dark:bg-dark-surface-sunken dark:text-dark-ink-soft">
+                <span className="rounded-sm bg-primary-600/10 px-2 py-0.5 type-caption font-semibold text-primary-400">
                   {unreadCount} new
                 </span>
               )}
@@ -161,54 +161,54 @@ export default function NotificationBell() {
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="flex items-center gap-1 text-xs font-medium text-pine hover:underline dark:text-amber-light"
+                  className="flex items-center gap-1 type-caption font-medium text-primary-500 hover:text-primary-600 transition-colors"
                 >
-                  <CheckCheck size={12} /> Mark all read
+                  <CheckCheck size={13} /> Mark all read
                 </button>
               )}
               {notifications.length > 0 && (
                 <button
                   onClick={handleClearAll}
-                  className="flex items-center gap-1 text-xs font-medium text-ink-soft hover:text-clay dark:text-dark-ink-soft"
+                  className="flex items-center gap-1 type-caption text-text-tertiary hover:text-semantic-danger transition-colors"
                 >
-                  <Trash2 size={12} /> Clear all
+                  <Trash2 size={13} /> Clear all
                 </button>
               )}
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-border/50 dark:divide-dark-border/50">
+          <div className="max-h-80 overflow-y-auto divide-y divide-border-subtle">
             {notifications.length === 0 ? (
-              <div className="p-6 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
-                No notifications yet. You're all caught up!
+              <div className="p-6 text-center type-body text-text-secondary">
+                No active notifications.
               </div>
             ) : (
               notifications.map((n) => (
                 <div
                   key={n._id}
                   onClick={() => handleClickItem(n)}
-                  className={`flex cursor-pointer items-start gap-3 p-3.5 transition-colors hover:bg-surface-sunken dark:hover:bg-dark-surface-sunken ${
+                  className={`flex cursor-pointer items-start gap-3 p-3.5 transition-colors hover:bg-bg-surface ${
                     !n.isRead
-                      ? "bg-amber/5 dark:bg-amber-light/5"
+                      ? "bg-primary-600/5"
                       : "opacity-80 hover:opacity-100"
                   }`}
                 >
-                  <div className="flex-shrink-0">{getTypeIcon(n.type)}</div>
+                  <div className="flex-shrink-0 mt-0.5">{getTypeIcon(n.type)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className={`text-xs font-semibold truncate ${!n.isRead ? "text-ink dark:text-dark-ink" : "text-ink-soft dark:text-dark-ink-soft"}`}>
+                      <p className={`type-body-sm font-semibold truncate ${!n.isRead ? "text-text-primary" : "text-text-secondary"}`}>
                         {n.title}
                       </p>
-                      <span className="whitespace-nowrap text-[10px] text-ink-soft dark:text-dark-ink-soft flex-shrink-0">
+                      <span className="whitespace-nowrap type-caption text-text-tertiary flex-shrink-0">
                         {timeAgo(n.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs text-ink-soft dark:text-dark-ink-soft line-clamp-2">
+                    <p className="mt-0.5 type-body-sm text-text-secondary line-clamp-2">
                       {n.message}
                     </p>
                   </div>
                   {!n.isRead && (
-                    <span className="mt-1 h-2 w-2 rounded-full bg-clay flex-shrink-0" />
+                    <span className="mt-1.5 h-2 w-2 rounded-full bg-primary-500 flex-shrink-0" />
                   )}
                 </div>
               ))
@@ -220,36 +220,36 @@ export default function NotificationBell() {
       {/* Notification detail modal */}
       {detail && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setDetail(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-border bg-surface p-5 shadow-2xl dark:border-dark-border dark:bg-dark-surface"
+            className="w-full max-w-sm rounded-md border border-border-subtle bg-bg-surface-raised p-6 shadow-raised"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-surface-sunken dark:bg-dark-surface-sunken">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-sm bg-bg-base border border-border-subtle">
                   {getTypeIcon(detail.type)}
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft dark:text-dark-ink-soft">
+                  <p className="type-caption text-text-tertiary uppercase">
                     {TYPE_LABELS[detail.type] || "Notification"}
                   </p>
-                  <h3 className="font-display text-sm font-bold text-ink dark:text-dark-ink">{detail.title}</h3>
+                  <h3 className="type-h3 font-semibold text-text-primary">{detail.title}</h3>
                 </div>
               </div>
               <button
                 onClick={() => setDetail(null)}
-                className="rounded-full p-1 text-ink-soft hover:bg-surface-sunken hover:text-ink dark:text-dark-ink-soft dark:hover:bg-dark-surface-sunken"
+                className="rounded-sm p-1 text-text-tertiary hover:text-text-primary transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <p className="mt-4 text-sm leading-relaxed text-ink dark:text-dark-ink">{detail.message}</p>
+            <p className="mt-4 type-body text-text-primary leading-relaxed">{detail.message}</p>
 
-            <div className="mt-4 space-y-1.5 border-t border-border/60 pt-3 text-xs text-ink-soft dark:border-dark-border/60 dark:text-dark-ink-soft">
+            <div className="mt-4 space-y-1.5 border-t border-border-subtle pt-3 type-caption text-text-secondary">
               <p className="flex items-center gap-1.5">
                 <UserIcon size={12} />
                 Sent by {detail.sentBy?.name ? `${detail.sentBy.name}${detail.sentBy.role === "admin" ? " (Admin)" : ""}` : "System"}
@@ -258,12 +258,12 @@ export default function NotificationBell() {
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
-              <Button size="sm" tone="secondary" onClick={() => setDetail(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setDetail(null)}>
                 Close
               </Button>
               {detail.link && (
-                <Button size="sm" tone="pine" onClick={handleGoToLink} className="gap-1">
-                  <ExternalLink size={13} /> Open
+                <Button size="sm" variant="primary" onClick={handleGoToLink} className="gap-1.5">
+                  <ExternalLink size={13} /> View
                 </Button>
               )}
             </div>

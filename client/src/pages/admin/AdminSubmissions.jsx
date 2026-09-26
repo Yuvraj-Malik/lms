@@ -1,45 +1,52 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
-  ClipboardCheck, 
-  Download, 
-  ExternalLink, 
   CheckCircle2, 
   Clock, 
+  ExternalLink, 
+  FileText, 
   Award, 
-  Search,
-  Filter,
-  Check,
-  AlertCircle
+  ChevronDown, 
+  ChevronUp, 
+  Calendar, 
+  User, 
+  ArrowRight,
+  Filter 
 } from "lucide-react";
 import { adminApi, submissionApi } from "../../api/endpoints.js";
+import { Card, Button, Input, Textarea, StatusBadge, Spinner, Alert, EmptyState } from "../../components/ui.jsx";
 import { getErrorMessage } from "../../api/client.js";
-import { Card, Button, Input, Textarea, Badge, Spinner, Alert, EmptyState } from "../../components/ui.jsx";
 
 function SubmissionItem({ submission, onGraded }) {
-  const [marks, setMarks] = useState(submission.marks ?? "");
+  const [marks, setMarks] = useState(
+    submission.marks !== undefined && submission.marks !== null ? submission.marks : ""
+  );
   const [feedback, setFeedback] = useState(submission.feedback || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const maxMarks = submission.assignment?.maximumMarks || 100;
+  const student = submission.student || {};
+  const assignment = submission.assignment || {};
+  const course = assignment.course || {};
+  const maxMarks = assignment.maximumMarks || 100;
+  const isGraded = submission.status === "graded";
+  const isLate = submission.status === "late";
 
   const handleGrade = async () => {
     setError("");
     setSuccess(false);
     const num = Number(marks);
     if (isNaN(num) || num < 0 || num > maxMarks) {
-      setError(`Marks must be between 0 and ${maxMarks}`);
+      setError(`Marks must be a number between 0 and ${maxMarks}.`);
       return;
     }
 
-    setSaving(true);
     try {
+      setSaving(true);
       const res = await submissionApi.grade(submission._id, { marks: num, feedback });
       setSuccess(true);
-      onGraded(res.data.submission);
-      setTimeout(() => setSuccess(false), 3000);
+      if (onGraded) onGraded(res.data.submission);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -48,100 +55,109 @@ function SubmissionItem({ submission, onGraded }) {
   };
 
   const renderContent = () => {
-    if (submission.submissionType === "file") {
-      const fileUrl = submission.filePath?.startsWith("http")
-        ? submission.filePath
-        : `${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${submission.filePath}`;
-
+    if (submission.submissionType === "file" && submission.fileUrl) {
+      const fullUrl = submission.fileUrl.startsWith("http")
+        ? submission.fileUrl
+        : `${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${submission.fileUrl}`;
       return (
-        <div className="flex items-center gap-2 rounded-lg bg-surface-sunken p-3 dark:bg-dark-surface-sunken">
-          <Download size={16} className="text-pine dark:text-amber-light flex-shrink-0" />
+        <div className="flex items-center gap-2 mt-2">
           <a
-            href={fileUrl}
+            href={fullUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-semibold text-pine hover:underline dark:text-amber-light truncate"
+            className="inline-flex items-center gap-1.5 rounded-[6px] border border-border-default bg-bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-bg-surface shadow-sm"
           >
-            {submission.fileOriginalName || "Download Submitted File"}
+            <FileText size={14} className="text-primary-600 dark:text-primary-400" />
+            Download: {submission.fileOriginalName || "Attached Student File"}
+            <ExternalLink size={12} className="ml-1 text-text-tertiary" />
           </a>
         </div>
       );
     }
-    if (submission.submissionType === "link") {
+
+    if (["github", "drive", "url"].includes(submission.submissionType) && submission.submissionLink) {
       return (
-        <div className="flex items-center gap-2 rounded-lg bg-surface-sunken p-3 dark:bg-dark-surface-sunken">
-          <ExternalLink size={16} className="text-pine dark:text-amber-light flex-shrink-0" />
+        <div className="mt-2">
           <a
             href={submission.submissionLink}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-medium text-pine hover:underline dark:text-amber-light truncate"
+            className="inline-flex items-center gap-1.5 rounded-[6px] border border-border-default bg-bg-surface-raised px-3 py-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline shadow-sm"
           >
+            <ExternalLink size={13} />
             {submission.submissionLink}
           </a>
         </div>
       );
     }
-    return (
-      <div className="rounded-lg bg-surface-sunken p-3 text-xs text-ink dark:bg-dark-surface-sunken dark:text-dark-ink whitespace-pre-wrap">
-        {submission.textContent || "No text content submitted."}
-      </div>
-    );
+
+    if (submission.textContent) {
+      return (
+        <div className="mt-2 rounded-[6px] border border-border-subtle bg-bg-surface-raised p-3 text-xs leading-relaxed text-text-secondary whitespace-pre-line max-h-48 overflow-y-auto">
+          {submission.textContent}
+        </div>
+      );
+    }
+
+    return <p className="text-xs text-text-tertiary mt-1 italic">No content recorded.</p>;
   };
 
-  const isGraded = submission.status === "graded";
-  const isLate = submission.status === "late";
-
   return (
-    <Card className="p-5 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3 dark:border-dark-border/60">
+    <Card className="p-6 space-y-4">
+      {/* Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-border-subtle pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-              {submission.assignment?.title || "Assignment Submission"}
-            </h3>
-            <Badge tone={isGraded ? "pine" : isLate ? "clay" : "amber"}>
-              {isGraded ? `Graded: ${submission.marks}/${maxMarks}` : isLate ? "Late Submission" : "Pending Review"}
-            </Badge>
+            <span className="type-caption text-text-tertiary">
+              {course.title || "Course"}
+            </span>
+            <span className="text-text-tertiary">&bull;</span>
+            <span className="type-caption text-primary-600 dark:text-primary-400">
+              {assignment.title || "Assignment"}
+            </span>
           </div>
-          <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-            Course: <span className="font-medium text-ink dark:text-dark-ink">{submission.assignment?.course?.title || "Course"}</span>
-          </p>
+          <div className="mt-1 flex items-center gap-3">
+            <p className="type-h3 text-text-primary">
+              {student.name || "Student"}
+            </p>
+            <span className="text-xs text-text-secondary">({student.email})</span>
+          </div>
         </div>
 
-        <div className="text-xs text-ink-soft dark:text-dark-ink-soft sm:text-right">
-          <p className="font-semibold text-ink dark:text-dark-ink">{submission.student?.name}</p>
-          <p>{submission.student?.email}</p>
-          <p className="text-[11px] mt-0.5">Submitted: {new Date(submission.submissionDate).toLocaleString()}</p>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <StatusBadge
+            status={isGraded ? "completed" : isLate ? "overdue" : "pending"}
+            label={isGraded ? `Graded: ${submission.marks}/${maxMarks}` : isLate ? "Late Submission" : "Pending Review"}
+          />
         </div>
       </div>
 
-      {/* Submitted Content View */}
+      {/* Submitted Content Preview */}
       <div>
-        <label className="text-[11px] font-bold text-ink-soft uppercase tracking-wider dark:text-dark-ink-soft block mb-1">
-          Submitted Work ({submission.submissionType}):
+        <label className="type-caption text-text-tertiary block mb-1">
+          Submitted Artifact ({submission.submissionType}):
         </label>
         {renderContent()}
       </div>
 
-      {/* Inline Grading Form */}
-      <div className="rounded-xl border border-border/80 bg-surface-sunken/40 p-4 dark:border-dark-border/80 dark:bg-dark-surface-sunken/40 space-y-3">
+      {/* Evaluation Box */}
+      <div className="rounded-[8px] border border-border-subtle bg-bg-surface-raised p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-ink dark:text-dark-ink flex items-center gap-1.5">
-            <Award size={15} className="text-pine dark:text-amber-light" />
-            {isGraded ? "Update Score & Feedback" : "Evaluate & Award Marks"}
+          <label className="type-h3 text-text-primary flex items-center gap-1.5 text-xs">
+            <Award size={15} className="text-primary-600 dark:text-primary-400" />
+            {isGraded ? "Update Evaluation" : "Evaluate & Score Work"}
           </label>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft">
-            Maximum Marks: <strong className="text-ink dark:text-dark-ink">{maxMarks}</strong>
+          <span className="type-caption text-text-tertiary">
+            Maximum Marks: <strong className="text-text-primary">{maxMarks}</strong>
           </span>
         </div>
 
-        {error && <Alert tone="clay">{error}</Alert>}
-        {success && <Alert tone="pine">Grade and feedback saved! Student has been notified.</Alert>}
+        {error && <Alert tone="danger">{error}</Alert>}
+        {success && <Alert tone="success">Grade recorded. Student notified.</Alert>}
 
         <div className="grid gap-3 sm:grid-cols-[140px_1fr_auto]">
           <div>
-            <label className="block text-[11px] font-medium text-ink-soft dark:text-dark-ink-soft mb-1">
+            <label className="block type-caption text-text-secondary mb-1">
               Score (0 - {maxMarks})
             </label>
             <input
@@ -151,31 +167,31 @@ function SubmissionItem({ submission, onGraded }) {
               value={marks}
               onChange={(e) => setMarks(e.target.value)}
               placeholder={`Max ${maxMarks}`}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+              className="w-full rounded-[6px] border border-border-default bg-bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-ink-soft dark:text-dark-ink-soft mb-1">
-              Constructive Feedback
+            <label className="block type-caption text-text-secondary mb-1">
+              Instructor Comments
             </label>
             <input
               type="text"
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
-              placeholder="e.g. Excellent implementation of database indexes and error handling."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+              placeholder="e.g. Logic is sound. Need additional error handling on boundary cases."
+              className="w-full rounded-[6px] border border-border-default bg-bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary-500 focus:outline-none"
             />
           </div>
 
           <div className="flex items-end">
             <Button
-              tone={isGraded ? "secondary" : "pine"}
+              variant={isGraded ? "secondary" : "primary"}
               onClick={handleGrade}
               disabled={saving || marks === ""}
               className="w-full sm:w-auto"
             >
-              {saving ? "Saving..." : isGraded ? "Update Grade" : "Submit Grade"}
+              {saving ? "Saving…" : isGraded ? "Update Score" : "Submit Score"}
             </Button>
           </div>
         </div>
@@ -187,15 +203,15 @@ function SubmissionItem({ submission, onGraded }) {
 export default function AdminSubmissions() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all"); // 'all' | 'pending' | 'graded'
+  const [activeTab, setActiveTab] = useState("pending");
 
   const fetchSubmissions = async () => {
     try {
       setLoading(true);
-      const res = await adminApi.allSubmissions();
-      setSubmissions(res.data.submissions || []);
+      const res = await adminApi.submissions();
+      setSubmissions(res.data?.submissions || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch admin submissions:", err);
     } finally {
       setLoading(false);
     }
@@ -205,51 +221,40 @@ export default function AdminSubmissions() {
     fetchSubmissions();
   }, []);
 
-  const handleRowGraded = (updatedSub) => {
+  const handleRowGraded = (updated) => {
     setSubmissions((prev) =>
-      prev.map((s) => (s._id === updatedSub._id ? { ...s, ...updatedSub } : s))
+      prev.map((s) => (s._id === updated._id ? { ...s, ...updated } : s))
     );
   };
 
-  const pendingList = submissions.filter((s) => s.status === "submitted" || s.status === "late");
+  const pendingList = submissions.filter((s) => s.status !== "graded");
   const gradedList = submissions.filter((s) => s.status === "graded");
 
   let filtered = submissions;
   if (activeTab === "pending") filtered = pendingList;
-  else if (activeTab === "graded") filtered = gradedList;
+  if (activeTab === "graded") filtered = gradedList;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink dark:text-dark-ink sm:text-3xl">
+          <h1 className="type-display text-text-primary">
             Submissions Hub
           </h1>
-          <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-            Review student submissions across all courses, grade works inline, and post personalized feedback.
+          <p className="mt-1 type-body text-text-secondary">
+            Review student submissions across enrolled courses and record evaluations
           </p>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-dark-border">
-        <button
-          onClick={() => setActiveTab("all")}
-          className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-            activeTab === "all"
-              ? "bg-pine text-white dark:bg-pine-light dark:text-dark-surface"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
-          }`}
-        >
-          All Submissions ({submissions.length})
-        </button>
-
+      {/* Segmented Filter Tabs */}
+      <div className="flex gap-1 rounded-[8px] border border-border-subtle bg-bg-surface-raised p-1">
         <button
           onClick={() => setActiveTab("pending")}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "pending"
-              ? "bg-amber text-pine"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
           <Clock size={14} />
@@ -258,14 +263,25 @@ export default function AdminSubmissions() {
 
         <button
           onClick={() => setActiveTab("graded")}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === "graded"
-              ? "bg-emerald-600 text-white"
-              : "bg-surface-sunken text-ink-soft hover:text-ink dark:bg-dark-surface-sunken dark:text-dark-ink-soft"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
           }`}
         >
           <CheckCircle2 size={14} />
           Graded ({gradedList.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`flex-1 rounded-[6px] px-4 py-2 text-sm font-medium transition-all ${
+            activeTab === "all"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          All Submissions ({submissions.length})
         </button>
       </div>
 
@@ -275,8 +291,8 @@ export default function AdminSubmissions() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={`No ${activeTab === "all" ? "" : activeTab} submissions found`}
-          description="Submissions from enrolled students will appear here as soon as they turn in assignments."
+          title="No submissions found"
+          description="Submissions will appear here once students submit assignments."
         />
       ) : (
         <div className="space-y-4">

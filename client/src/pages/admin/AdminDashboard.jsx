@@ -18,23 +18,25 @@ import { adminApi } from "../../api/endpoints.js";
 import { Card, Spinner } from "../../components/ui.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
 
-const PIE_COLORS = ["#166534", "#d97706", "#dc2626", "#0284c7"];
+// Semantic status chart colors
+const PIE_COLORS = ["#22C55E", "#F59E0B", "#EF4444", "#3B82F6"];
 
-const StatCard = ({ icon: Icon, label, value, tone = "pine" }) => {
+const StatCard = ({ icon: Icon, label, value, tone = "primary" }) => {
   const toneMap = {
-    pine: "bg-pine-bg text-pine dark:bg-pine-light/10 dark:text-pine-lighter",
-    amber: "bg-amber-bg text-amber dark:bg-amber/10 dark:text-amber-lighter",
-    clay: "bg-clay-bg text-clay dark:bg-clay/10 dark:text-clay-light",
-    sky: "bg-sky-bg text-sky dark:bg-sky/10 dark:text-sky",
+    primary: "border-primary-500/20 bg-primary-50 text-primary-600 dark:bg-primary-600/15 dark:text-primary-400",
+    success: "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    warning: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    danger: "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-400",
   };
+
   return (
-    <Card className="flex items-center gap-4 p-5">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${toneMap[tone]}`}>
+    <Card className="flex items-center gap-4 p-6">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border ${toneMap[tone] || toneMap.primary}`}>
         <Icon size={20} />
       </div>
       <div>
-        <p className="text-2xl font-bold tracking-tight text-ink dark:text-dark-ink">{value}</p>
-        <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{label}</p>
+        <p className="type-h2 text-text-primary">{value}</p>
+        <p className="type-body-sm text-text-secondary">{label}</p>
       </div>
     </Card>
   );
@@ -66,14 +68,14 @@ const AdminDashboard = () => {
     });
   }, []);
 
-  const gridColor = dark ? "#374151" : "#e5e7eb";
-  const textColor = dark ? "#9ca3af" : "#6b7280";
+  const gridColor = dark ? "#242938" : "#E2E8F0";
+  const textColor = dark ? "#9CA3AF" : "#64748B";
   const tooltipStyle = {
     fontSize: 12,
-    borderRadius: 8,
-    backgroundColor: dark ? "#1f2937" : "#ffffff",
-    borderColor: dark ? "#374151" : "#e5e7eb",
-    color: dark ? "#f9fafb" : "#111827",
+    borderRadius: 6,
+    backgroundColor: dark ? "#1A1F2B" : "#FFFFFF",
+    borderColor: dark ? "#242938" : "#E2E8F0",
+    color: dark ? "#F1F3F7" : "#0F172A",
   };
 
   if (loading) {
@@ -85,29 +87,28 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-dark-ink">Admin Dashboard</h1>
-        <p className="mt-0.5 text-sm text-ink-soft dark:text-dark-ink-soft">Platform overview and analytics.</p>
+        <h1 className="type-display text-text-primary">Administrative Overview</h1>
+        <p className="mt-1 type-body text-text-secondary">Platform enrollments, student progress, and submission metrics</p>
       </div>
 
+      {/* Stat row (16px gap, 24px padding) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={Users} label="Total students" value={stats.studentCount} tone="sky" />
-        <StatCard icon={BookOpen} label="Courses" value={stats.courseCount} tone="pine" />
-        <StatCard icon={Layers} label="Enrollments" value={stats.enrollmentCount} tone="pine" />
-        <StatCard icon={ClipboardList} label="Assignments" value={stats.assignmentCount} tone="amber" />
-        <StatCard icon={FileCheck} label="Submissions" value={stats.submissionCount} tone="amber" />
-        <StatCard icon={AlertCircle} label="Pending grading" value={stats.pendingGrading} tone="clay" />
+        <StatCard icon={Users} label="Total students" value={stats.studentCount} tone="primary" />
+        <StatCard icon={BookOpen} label="Published courses" value={stats.courseCount} tone="primary" />
+        <StatCard icon={Layers} label="Active enrollments" value={stats.enrollmentCount} tone="primary" />
+        <StatCard icon={ClipboardList} label="Total assignments" value={stats.assignmentCount} tone="warning" />
+        <StatCard icon={FileCheck} label="Submissions recorded" value={stats.submissionCount} tone="success" />
+        <StatCard icon={AlertCircle} label="Awaiting evaluation" value={stats.pendingGrading} tone="danger" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <div className="border-b border-border p-4 dark:border-dark-border">
-            <h2 className="text-sm font-semibold text-ink dark:text-dark-ink">Enrollments by Course</h2>
-          </div>
-          <div className="p-4 h-64">
+        <Card className="p-6">
+          <h2 className="type-h3 text-text-primary mb-4">Course Enrollments</h2>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={enrollByCourse} margin={{ left: -20 }}>
+              <BarChart data={enrollByCourse} margin={{ left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis
                   dataKey="courseTitle"
@@ -119,19 +120,19 @@ const AdminDashboard = () => {
                 />
                 <YAxis tick={{ fontSize: 11, fill: textColor }} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" fill="var(--color-pine)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#4F46E5" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card>
-          <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-            Average progress by course (%)
+        <Card className="p-6">
+          <h2 className="type-h3 text-text-primary mb-4">
+            Average Curriculum Progress (%)
           </h2>
-          <div className="mt-4 h-64">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={avgProgress} margin={{ left: -20 }}>
+              <BarChart data={avgProgress} margin={{ left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis
                   dataKey="courseTitle"
@@ -143,20 +144,20 @@ const AdminDashboard = () => {
                 />
                 <YAxis tick={{ fontSize: 11, fill: textColor }} domain={[0, 100]} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="avgProgress" fill="var(--color-amber)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="avgProgress" fill="#6366F1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card>
-          <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-            Student signups (last 30 days)
+        <Card className="p-6">
+          <h2 className="type-h3 text-text-primary mb-4">
+            Student Registrations (30 Days)
           </h2>
-          <div className="mt-4 h-64">
+          <div className="h-64">
             {signups.length === 0 ? (
-              <p className="flex h-full items-center justify-center text-sm text-ink-soft dark:text-dark-ink-soft">
-                No signups in this window yet.
+              <p className="flex h-full items-center justify-center type-body-sm text-text-tertiary">
+                No new registrations in this window.
               </p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -165,19 +166,19 @@ const AdminDashboard = () => {
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: textColor }} />
                   <YAxis tick={{ fontSize: 11, fill: textColor }} allowDecimals={false} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="count" stroke="var(--color-pine)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="count" stroke="#4F46E5" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
         </Card>
 
-        <Card>
-          <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">Submission status</h2>
-          <div className="mt-4 h-64">
+        <Card className="p-6">
+          <h2 className="type-h3 text-text-primary mb-4">Submission Evaluation Breakdown</h2>
+          <div className="h-64">
             {statusBreakdown.length === 0 ? (
-              <p className="flex h-full items-center justify-center text-sm text-ink-soft dark:text-dark-ink-soft">
-                No submissions yet.
+              <p className="flex h-full items-center justify-center type-body-sm text-text-tertiary">
+                No submissions on record.
               </p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">

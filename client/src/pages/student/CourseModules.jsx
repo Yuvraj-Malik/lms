@@ -1,67 +1,73 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { 
-  CheckCircle2, 
-  Circle, 
-  ExternalLink, 
   BookOpen, 
-  Award, 
+  CheckCircle2, 
   ChevronDown, 
   ChevronUp, 
-  Info,
-  Clock,
-  FileText
+  FileText, 
+  ExternalLink,
+  Award,
+  ArrowLeft,
+  CircleDot
 } from "lucide-react";
-import { courseApi, moduleApi, enrollmentApi } from "../../api/endpoints.js";
-import { Card, Button, Spinner, Badge } from "../../components/ui.jsx";
+import { courseApi, enrollmentApi } from "../../api/endpoints.js";
+import { getErrorMessage } from "../../api/client.js";
+import { Card, Button, Spinner, Alert, StatusBadge } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
 
 export default function CourseModules() {
-  const { courseId } = useParams();
+  const { id } = useParams();
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [enrollment, setEnrollment] = useState(null);
+  const [openModuleId, setOpenModuleId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState(null);
-  const [openId, setOpenId] = useState(null);
+  const [error, setError] = useState("");
 
-  const load = async () => {
-    setLoading(true);
+  const fetchCourseData = async () => {
     try {
-      const [courseRes, modulesRes, statusRes] = await Promise.all([
-        courseApi.get(courseId),
-        moduleApi.listForCourse(courseId),
-        enrollmentApi.status(courseId),
+      setLoading(true);
+      const [cRes, eRes] = await Promise.all([
+        courseApi.get(id),
+        enrollmentApi.my(),
       ]);
-      setCourse(courseRes.data.course);
-      const sortedMods = (modulesRes.data.modules || []).sort(
+
+      setCourse(cRes.data?.course);
+      const sortedMods = (cRes.data?.modules || []).sort(
         (a, b) => a.moduleOrder - b.moduleOrder
       );
       setModules(sortedMods);
-      setEnrollment(statusRes.data.enrollment);
-      // Auto open the first incomplete module or the first module
-      if (sortedMods.length > 0) {
-        const completedSet = new Set(statusRes.data.enrollment?.completedModules || []);
+
+      const myEnr = (eRes.data?.enrollments || []).find(
+        (e) => (e.course?._id || e.course) === id
+      );
+      setEnrollment(myEnr || null);
+
+      if (sortedMods.length > 0 && !openModuleId) {
+        const completedSet = new Set(myEnr?.completedModules || []);
         const firstIncomplete = sortedMods.find((m) => !completedSet.has(m._id));
-        setOpenId(firstIncomplete ? firstIncomplete._id : sortedMods[0]._id);
+        setOpenModuleId(firstIncomplete ? firstIncomplete._id : sortedMods[0]._id);
       }
     } catch (err) {
-      console.error(err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId]);
+    fetchCourseData();
+  }, [id]);
 
-  const handleComplete = async (moduleId) => {
-    setCompletingId(moduleId);
+  const handleComplete = async (modId) => {
     try {
-      const { data } = await moduleApi.complete(moduleId);
-      setEnrollment(data.enrollment);
+      setCompletingId(modId);
+      const res = await enrollmentApi.completeModule(id, modId);
+      setEnrollment(res.data.enrollment);
+    } catch (err) {
+      alert(getErrorMessage(err));
     } finally {
       setCompletingId(null);
     }
@@ -69,68 +75,71 @@ export default function CourseModules() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <Spinner size={32} />
+      <div className="flex min-h-64 items-center justify-center">
+        <Spinner size={28} />
       </div>
     );
   }
+
   if (!course || !enrollment) return null;
 
-  const completedCount = enrollment.completedModules?.length || 0;
+  const completedModules = new Set(enrollment.completedModules || []);
+  const completedCount = completedModules.size;
   const totalCount = modules.length;
   const isAllCompleted = totalCount > 0 && completedCount >= totalCount;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-8">
+      {/* Back button and Course Header */}
       <div>
         <Link
           to="/dashboard/my-courses"
-          className="inline-flex items-center text-xs font-semibold text-pine hover:underline dark:text-amber-light"
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
         >
-          ← Back to Enrolled Courses
+          <ArrowLeft size={14} /> Back to Enrolled Courses
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold tracking-wide text-amber uppercase dark:text-amber-light">
+            <span className="type-caption text-primary-600 dark:text-primary-400">
               {course.category}
             </span>
-            <h1 className="font-display text-2xl font-bold text-ink dark:text-dark-ink sm:text-3xl">
+            <h1 className="type-display text-text-primary mt-1">
               {course.title}
             </h1>
           </div>
           <Link to={`/dashboard/my-courses/${course._id}/details`}>
-            <Button size="xs" tone="secondary">
-              Course Syllabus & Details
+            <Button size="sm" variant="secondary">
+              Course Syllabus
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Explicit Completion Requirement & Progress Banner (MUST HAVE) */}
-      <Card className="border-pine/30 bg-gradient-to-r from-pine/5 via-surface to-surface p-5 dark:border-pine-light/30 dark:from-pine-light/5 dark:via-dark-surface dark:to-dark-surface">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+      {/* Completion Requirement & Progress Banner */}
+      <Card className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <BookOpen size={18} className="text-pine dark:text-amber-light" />
-              <h2 className="font-display text-sm font-bold text-ink dark:text-dark-ink">
-                Module Completion Policy
+              <BookOpen size={18} className="text-primary-600 dark:text-primary-400" />
+              <h2 className="type-h3 text-text-primary">
+                Module Completion Requirements
               </h2>
             </div>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft max-w-xl">
-              Study the materials and lecture notes in each module, then click <strong className="text-ink dark:text-dark-ink">"Mark as Complete"</strong>. Finishing all {totalCount} modules will graduate you to 100% and generate your verified <strong className="text-pine dark:text-amber-light">Certificate of Completion</strong>.
+            <p className="type-body-sm text-text-secondary max-w-xl">
+              Review syllabus materials in each module and mark lessons complete. Finishing all {totalCount} modules generates your accredited completion certificate.
             </p>
           </div>
 
-          <div className="flex flex-col sm:items-end flex-shrink-0">
-            <span className="text-xs font-semibold text-ink dark:text-dark-ink">
-              {completedCount} of {totalCount} modules completed ({enrollment.progress}%)
+          <div className="flex flex-col sm:items-end shrink-0">
+            <span className="type-caption text-text-primary font-semibold">
+              {completedCount} of {totalCount} completed ({enrollment.progress}%)
             </span>
-            <div className="w-48 mt-1.5">
+            <div className="w-48 mt-2">
               <ProgressBar value={enrollment.progress} />
             </div>
             {isAllCompleted && (
-              <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                <Award size={12} /> Certificate Unlocked on Profile!
+              <span className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <Award size={13} /> Certificate available on profile
               </span>
             )}
           </div>
@@ -140,77 +149,79 @@ export default function CourseModules() {
       {/* Module List Accordion */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h2 className="font-display text-lg font-bold text-ink dark:text-dark-ink">
-            Course Curriculum ({modules.length} Modules)
+          <h2 className="type-h3 text-text-primary">
+            Curriculum Modules ({modules.length})
           </h2>
-          <span className="text-xs text-ink-soft dark:text-dark-ink-soft">
-            Click module to view lessons & resources
+          <span className="type-caption text-text-tertiary">
+            Select module to view lessons
           </span>
         </div>
 
         {modules.map((m) => {
-          const done = enrollment.completedModules?.includes(m._id);
-          const open = openId === m._id;
+          const done = completedModules.has(m._id);
+          const open = openModuleId === m._id;
 
           return (
             <Card
               key={m._id}
-              className={`transition-all ${
-                done ? "border-emerald-500/30 bg-emerald-500/5 dark:border-emerald-500/20" : ""
+              className={`p-5 transition-all duration-150 ${
+                open ? "border-primary-500/30" : ""
               }`}
             >
               <button
-                onClick={() => setOpenId(open ? null : m._id)}
+                onClick={() => setOpenModuleId(open ? null : m._id)}
                 className="flex w-full items-center justify-between text-left focus:outline-none"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="flex-shrink-0">
-                    {done ? (
-                      <CheckCircle2 size={22} className="text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <Circle size={22} className="text-ink-soft dark:text-dark-ink-soft" />
-                    )}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border text-xs font-semibold ${
+                      done
+                        ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "border-border-subtle bg-bg-surface-raised text-text-secondary"
+                    }`}
+                  >
+                    {done ? <CheckCircle2 size={16} /> : m.moduleOrder}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-ink-soft dark:text-dark-ink-soft">
+                      <span className="type-caption text-text-tertiary">
                         Module {m.moduleOrder}
                       </span>
                       {done && (
-                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                          COMPLETED
+                        <span className="rounded-[4px] bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400">
+                          Complete
                         </span>
                       )}
                     </div>
-                    <p className="font-display text-sm font-semibold text-ink dark:text-dark-ink">
+                    <p className="type-h3 text-text-primary truncate mt-0.5">
                       {m.title}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-ink-soft dark:text-dark-ink-soft">
-                  <span className="text-xs hidden sm:inline">
-                    {open ? "Hide details" : "Expand"}
+                <div className="flex items-center gap-2 text-text-secondary">
+                  <span className="type-caption hidden sm:inline">
+                    {open ? "Collapse" : "Expand"}
                   </span>
-                  {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </div>
               </button>
 
               {open && (
-                <div className="mt-4 border-t border-border pt-4 dark:border-dark-border space-y-4">
+                <div className="mt-4 border-t border-border-subtle pt-4 space-y-4">
                   {m.description && (
-                    <p className="text-xs font-medium text-ink-soft dark:text-dark-ink-soft">
+                    <p className="type-body text-text-secondary">
                       {m.description}
                     </p>
                   )}
 
                   {m.notes && (
-                    <div className="rounded-xl border border-border/80 bg-surface-sunken/60 p-4 text-xs leading-relaxed text-ink dark:border-dark-border/80 dark:bg-dark-surface-sunken/60 dark:text-dark-ink">
-                      <div className="flex items-center gap-1.5 font-semibold text-ink dark:text-dark-ink mb-2">
-                        <FileText size={14} className="text-pine dark:text-amber-light" />
-                        Lecture Notes & Study Guide:
+                    <div className="rounded-[6px] border border-border-subtle bg-bg-surface-raised p-4 text-xs leading-relaxed text-text-primary">
+                      <div className="flex items-center gap-1.5 font-semibold text-text-primary mb-2">
+                        <FileText size={14} className="text-primary-600 dark:text-primary-400" />
+                        Lecture Notes & Study Material:
                       </div>
-                      <p className="whitespace-pre-line text-ink-soft dark:text-dark-ink-soft">
+                      <p className="whitespace-pre-line type-body-sm text-text-secondary">
                         {m.notes}
                       </p>
                     </div>
@@ -218,8 +229,8 @@ export default function CourseModules() {
 
                   {m.resourceLinks?.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-ink dark:text-dark-ink mb-2">
-                        Attached Resources & Documentation:
+                      <h4 className="type-caption text-text-tertiary mb-2">
+                        Attached Resources:
                       </h4>
                       <ul className="space-y-1.5">
                         {m.resourceLinks.map((link, i) => (
@@ -228,7 +239,7 @@ export default function CourseModules() {
                               href={link}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-md bg-surface-raised px-2.5 py-1 text-xs font-medium text-pine hover:underline dark:bg-dark-surface-raised dark:text-amber-light"
+                              className="inline-flex items-center gap-1.5 rounded-[4px] bg-bg-surface-raised px-2.5 py-1 type-body-sm text-primary-600 hover:underline dark:text-primary-400"
                             >
                               <ExternalLink size={12} /> {link}
                             </a>
@@ -238,24 +249,24 @@ export default function CourseModules() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-2 border-t border-border/50 dark:border-dark-border/50">
-                    <span className="text-xs text-ink-soft dark:text-dark-ink-soft">
-                      Status: {done ? "Completed" : "Incomplete"}
+                  <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
+                    <span className="type-body-sm text-text-secondary">
+                      Status: {done ? "Completed" : "Pending completion"}
                     </span>
                     {!done ? (
                       <Button
-                        tone="pine"
+                        variant="primary"
                         size="sm"
                         onClick={() => handleComplete(m._id)}
                         disabled={completingId === m._id}
                         className="gap-1.5"
                       >
                         <CheckCircle2 size={14} />
-                        {completingId === m._id ? "Updating progress..." : "Mark as Complete"}
+                        {completingId === m._id ? "Saving…" : "Mark as Complete"}
                       </Button>
                     ) : (
-                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 size={14} /> Verified Complete
+                      <span className="type-body-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 size={14} /> Completed
                       </span>
                     )}
                   </div>
@@ -266,7 +277,7 @@ export default function CourseModules() {
         })}
 
         {modules.length === 0 && (
-          <Card className="p-8 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
+          <Card className="p-8 text-center type-body text-text-secondary">
             No modules published yet for this course.
           </Card>
         )}

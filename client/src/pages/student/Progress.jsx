@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { enrollmentApi } from "../../api/endpoints.js";
-import { Card, Badge, Spinner, EmptyState } from "../../components/ui.jsx";
+import { Card, StatusBadge, Spinner, EmptyState } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
 
 const Progress = () => {
@@ -19,28 +19,42 @@ const Progress = () => {
   }
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">Progress</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="type-display text-text-primary">Academic Progress</h1>
+        <p className="mt-1 type-body text-text-secondary">
+          Track module completion and progress across enrolled curricula
+        </p>
+      </div>
 
       {enrollments.length === 0 ? (
-        <EmptyState title="No progress to show yet" description="Enroll in a course to start tracking it." />
+        <EmptyState
+          title="No enrollment progress"
+          description="Enroll in a course from the catalog to track your progress here."
+        />
       ) : (
-        <div className="mt-6 space-y-5">
+        <div className="grid gap-4">
           {enrollments.map((e) => (
-            <Card
-              key={e._id}
-              className="rounded-2xl border-border/60 bg-surface-raised/70 p-5 shadow-none dark:border-dark-border/70 dark:bg-dark-surface/70 sm:p-6"
-            >
-              <div className="flex items-center justify-between">
+            <Card key={e._id} className="p-6">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-base font-semibold text-ink dark:text-dark-ink">{e.course.title}</p>
-                  <p className="mt-0.5 text-sm text-ink-soft dark:text-dark-ink-soft">
+                  <p className="type-h3 text-text-primary">{e.course.title}</p>
+                  <p className="mt-1 type-body-sm text-text-secondary">
                     {e.completedModules.length} module{e.completedModules.length !== 1 ? "s" : ""} completed
                   </p>
                 </div>
-                <Badge tone={e.status === "completed" ? "pine" : "amber"}>{e.status}</Badge>
+                <StatusBadge
+                  status={e.status === "completed" ? "completed" : "in-progress"}
+                  label={e.status}
+                />
               </div>
-              <ProgressBar value={e.progress} className="mt-5" />
+              <div className="mt-4">
+                <div className="flex justify-between type-caption text-text-secondary mb-1">
+                  <span>Progress</span>
+                  <span className="font-semibold text-primary-600 dark:text-primary-400">{e.progress}%</span>
+                </div>
+                <ProgressBar value={e.progress} showLabel={false} />
+              </div>
             </Card>
           ))}
         </div>

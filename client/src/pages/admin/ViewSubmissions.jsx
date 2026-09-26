@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Download } from "lucide-react";
 import { assignmentApi, submissionApi } from "../../api/endpoints.js";
-import { Card, Badge, Button, Input, Textarea, Spinner, EmptyState } from "../../components/ui.jsx";
+import { Card, Badge, StatusBadge, Button, Input, Textarea, Spinner, EmptyState } from "../../components/ui.jsx";
 
 const SubmissionRow = ({ submission, maximumMarks, onGraded }) => {
   const [marks, setMarks] = useState(submission.marks ?? "");
@@ -25,41 +25,51 @@ const SubmissionRow = ({ submission, maximumMarks, onGraded }) => {
         href={submission.filePath}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-1.5 text-sm text-pine hover:underline dark:text-amber-light"
+        className="inline-flex items-center gap-1.5 type-body-sm font-medium text-primary-500 hover:text-primary-600 transition-colors"
       >
-        <Download size={13} /> {submission.fileOriginalName || "Download file"}
+        <Download size={14} /> {submission.fileOriginalName || "Download submitted file"}
       </a>
     ) : submission.submissionType === "text" ? (
-      <p className="text-sm text-ink-soft dark:text-dark-ink-soft">{submission.textContent}</p>
+      <div className="rounded-sm bg-bg-base/60 p-3 border border-border-subtle type-body text-text-primary">
+        {submission.textContent}
+      </div>
     ) : (
       <a
         href={submission.submissionLink}
         target="_blank"
         rel="noreferrer"
-        className="text-sm text-pine hover:underline dark:text-amber-light"
+        className="type-body-sm font-medium text-primary-500 hover:text-primary-600 underline transition-colors"
       >
         {submission.submissionLink}
       </a>
     );
 
+  const getStatusBadge = () => {
+    if (submission.status === "graded") {
+      return <StatusBadge status="completed" label="Graded" />;
+    }
+    if (submission.status === "late") {
+      return <StatusBadge status="overdue" label="Submitted Late" />;
+    }
+    return <StatusBadge status="pending" label="Pending Review" />;
+  };
+
   return (
-    <Card>
+    <Card className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-ink dark:text-dark-ink">{submission.student?.name}</p>
-          <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{submission.student?.email}</p>
-          <p className="mt-1 text-xs text-ink-soft dark:text-dark-ink-soft">
+          <p className="type-h3 text-text-primary">{submission.student?.name}</p>
+          <p className="type-body-sm text-text-secondary">{submission.student?.email}</p>
+          <p className="mt-1 type-caption text-text-tertiary">
             Submitted {new Date(submission.submissionDate).toLocaleString()}
           </p>
         </div>
-        <Badge tone={submission.status === "late" ? "clay" : submission.status === "graded" ? "pine" : "amber"}>
-          {submission.status}
-        </Badge>
+        <div>{getStatusBadge()}</div>
       </div>
 
-      <div className="mt-3">{content}</div>
+      <div className="mt-4">{content}</div>
 
-      <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-[140px_1fr_auto] dark:border-dark-border">
+      <div className="mt-5 grid gap-3 border-t border-border-subtle pt-4 sm:grid-cols-[140px_1fr_auto]">
         <Input
           label={`Marks (/ ${maximumMarks})`}
           type="number"
@@ -68,10 +78,16 @@ const SubmissionRow = ({ submission, maximumMarks, onGraded }) => {
           value={marks}
           onChange={(e) => setMarks(e.target.value)}
         />
-        <Textarea label="Feedback" rows={1} value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+        <Textarea
+          label="Instructor Notes"
+          placeholder="e.g. Clean recursive implementation; test coverage omitted null edge case."
+          rows={1}
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+        />
         <div className="flex items-end">
           <Button onClick={handleGrade} disabled={saving || marks === ""}>
-            {saving ? "Saving…" : "Save grade"}
+            {saving ? "Recording…" : "Record grade"}
           </Button>
         </div>
       </div>
@@ -114,15 +130,15 @@ const ViewSubmissions = () => {
     <div>
       <Link
         to={`/admin/courses/${assignment.course._id}/assignments`}
-        className="text-xs font-medium text-pine dark:text-amber-light"
+        className="inline-flex items-center text-xs font-medium text-primary-500 hover:text-primary-600 transition-colors"
       >
         ← Back to Assignments
       </Link>
-      <h1 className="mt-2 font-display text-2xl font-semibold text-ink dark:text-dark-ink">
+      <h1 className="mt-3 type-display font-semibold text-text-primary">
         Submissions — {assignment.title}
       </h1>
-      <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-        {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
+      <p className="mt-1 type-body-sm text-text-secondary">
+        {submissions.length} student submission{submissions.length !== 1 ? "s" : ""}
       </p>
 
       <div className="mt-6 space-y-4">

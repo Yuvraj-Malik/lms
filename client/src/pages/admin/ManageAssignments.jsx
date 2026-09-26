@@ -84,11 +84,11 @@ const ManageAssignments = () => {
 
   return (
     <div>
-      <Link to="/admin/courses" className="text-xs font-medium text-pine dark:text-amber-light">
+      <Link to="/admin/courses" className="inline-flex items-center text-xs font-medium text-primary-500 hover:text-primary-600 transition-colors">
         ← Back to Courses
       </Link>
-      <div className="mt-2 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">
+      <div className="mt-3 flex items-center justify-between">
+        <h1 className="type-h2 font-semibold text-text-primary">
           Assignments — {course.title}
         </h1>
         <Button onClick={openNew}>
@@ -97,12 +97,12 @@ const ManageAssignments = () => {
       </div>
 
       {showForm && (
-        <Card className="mt-6">
+        <Card className="mt-6 p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
+            <h2 className="type-h3 font-semibold text-text-primary">
               {editingId ? "Edit assignment" : "New assignment"}
             </h2>
-            <button onClick={() => setShowForm(false)} className="text-ink-soft dark:text-dark-ink-soft">
+            <button onClick={() => setShowForm(false)} className="text-text-tertiary hover:text-text-primary transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -138,39 +138,41 @@ const ManageAssignments = () => {
                 onChange={(e) => setForm({ ...form, maximumMarks: e.target.value })}
               />
             </div>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save assignment"}
-            </Button>
+            <div className="pt-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save assignment"}
+              </Button>
+            </div>
           </form>
         </Card>
       )}
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 space-y-3">
         {assignments.map((a) => (
-          <Card key={a._id} className="flex flex-wrap items-center justify-between gap-3">
+          <Card key={a._id} className="p-5 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-ink dark:text-dark-ink">{a.title}</p>
-              <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
+              <p className="type-h3 text-text-primary">{a.title}</p>
+              <p className="type-body-sm text-text-secondary mt-0.5">
                 Due {new Date(a.deadline).toLocaleString()} · Max marks {a.maximumMarks}
               </p>
             </div>
             <div className="flex gap-2">
               <Link to={`/admin/assignments/${a._id}/submissions`}>
-                <Button variant="secondary">
+                <Button variant="secondary" size="sm">
                   <FileCheck size={14} /> Submissions
                 </Button>
               </Link>
-              <Button variant="secondary" onClick={() => openEdit(a)}>
+              <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
                 <Pencil size={14} />
               </Button>
-              <Button variant="danger" onClick={() => handleDelete(a._id, a.title)}>
+              <Button variant="danger" size="sm" onClick={() => handleDelete(a._id, a.title)}>
                 <Trash2 size={14} />
               </Button>
             </div>
           </Card>
         ))}
         {assignments.length === 0 && (
-          <p className="text-sm text-ink-soft dark:text-dark-ink-soft">No assignments yet — add the first one.</p>
+          <p className="type-body text-text-secondary">No assignments configured for this course yet.</p>
         )}
       </div>
     </div>

@@ -1,90 +1,117 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Users, 
-  Search, 
-  ShieldAlert, 
   ShieldCheck, 
-  UserCheck, 
   UserX, 
-  Trash2, 
+  Search, 
   Filter, 
-  CheckCircle,
+  Trash2, 
+  RefreshCw, 
+  CheckCircle2, 
   AlertTriangle,
+  Megaphone,
   Send,
-  Megaphone
+  Eye,
+  Settings
 } from "lucide-react";
 import { adminApi } from "../../api/endpoints.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { Card, Button, Input, Textarea, Select, Badge, Spinner, Alert } from "../../components/ui.jsx";
 import { getErrorMessage } from "../../api/client.js";
-import { Card, Button, Input, Textarea, Badge, Spinner, Alert } from "../../components/ui.jsx";
 
 export default function AdminSettings() {
   const { user: currentAdmin } = useAuth();
+
+  // Users State
   const [users, setUsers] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionMsg, setActionMsg] = useState("");
   const [actionErr, setActionErr] = useState("");
-  const [confirmDialog, setConfirmDialog] = useState(null); // { type, user, action }
 
-  // Notification composer state
-  const [notifForm, setNotifForm] = useState({ title: "", message: "", link: "", audience: "all", userId: "" });
+  // Broadcast Notification State
+  const [notifForm, setNotifForm] = useState({
+    title: "",
+    message: "",
+    audience: "all",
+    link: "",
+    userId: "",
+  });
+  const [sendingNotif, setSendingNotif] = useState(false);
   const [notifMsg, setNotifMsg] = useState("");
   const [notifErr, setNotifErr] = useState("");
-  const [sendingNotif, setSendingNotif] = useState(false);
 
-  const fetchUsers = async () => {
+  // Action Confirmation Dialog
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
+  const fetchUsers = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoadingUsers(true);
       const res = await adminApi.users({
-        search: search || undefined,
+        search: search.trim() || undefined,
         role: roleFilter !== "all" ? roleFilter : undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
-      setUsers(res.data.users || []);
+      setUsers(res.data?.users || []);
     } catch (err) {
-      console.error(err);
       setActionErr(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      setLoadingUsers(false);
     }
-  };
+  }, [search, roleFilter, statusFilter]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [roleFilter, statusFilter]);
+    const t = setTimeout(() => {
+      fetchUsers();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [fetchUsers]);
 
-  useEffect(() => {
-    adminApi.users({}).then((res) => setAllUsers(res.data.users || [])).catch(() => {});
-  }, []);
+  const handleRoleChange = async (targetUser, newRole) => {
+    const isSuper = newRole === "superadmin";
+    const actualRole = isSuper ? "admin" : newRole;
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchUsers();
+    try {
+      await adminApi.updateUserRole(targetUser._id, {
+        role: actualRole,
+        isSuperAdmin: isSuper,
+      });
+      setActionMsg(`Updated ${targetUser.name}'s role to ${newRole}.`);
+      fetchUsers();
+    } catch (err) {
+      setActionErr(getErrorMessage(err));
+    }
   };
 
   const handleSendNotification = async (e) => {
     e.preventDefault();
-    setNotifErr("");
     setNotifMsg("");
+    setNotifErr("");
 
     if (!notifForm.title.trim() || !notifForm.message.trim()) {
       setNotifErr("Title and message are required.");
       return;
     }
     if (notifForm.audience === "specific" && !notifForm.userId) {
-      setNotifErr("Select a user to notify.");
+      setNotifErr("Please specify a user ID for a single recipient notification.");
       return;
     }
 
-    setSendingNotif(true);
     try {
+      setSendingNotif(true);
       const res = await adminApi.sendNotification(notifForm);
-      setNotifMsg(res.data.message);
-      setNotifForm({ title: "", message: "", link: "", audience: "all", userId: "" });
+      setNotifMsg(
+        `Dispatched announcement to ${res.data.count} recipient${res.data.count !== 1 ? "s" : ""}.`
+      );
+      setNotifForm({
+        title: "",
+        message: "",
+        audience: "all",
+        link: "",
+        userId: "",
+      });
     } catch (err) {
       setNotifErr(getErrorMessage(err));
     } finally {
@@ -92,24 +119,20 @@ export default function AdminSettings() {
     }
   };
 
-  const handleRoleChange = (targetUser, newRoleValue) => {
-    const roleLabels = { student: "Student", admin: "Admin", superadmin: "Super Admin" };
-    const currentValue = targetUser.isSuperAdmin ? "superadmin" : targetUser.role;
-    if (newRoleValue === currentValue) return;
+  const handleDeleteUser = (targetUser) => {
     setConfirmDialog({
-      title: "Change User Role",
-      message: `Change ${targetUser.name}'s role from "${roleLabels[currentValue]}" to "${roleLabels[newRoleValue]}"?`,
-      confirmText: `Confirm ${roleLabels[newRoleValue]}`,
-      confirmTone: newRoleValue === "superadmin" ? "amber" : "pine",
+      title: "Delete User Record",
+      message: `Permanently delete ${targetUser.name} (${targetUser.email})? This action cannot be reversed.`,
+      confirmText: "Delete Record",
+      confirmTone: "danger",
       action: async () => {
         try {
-          setActionErr("");
-          await adminApi.updateUserRole(targetUser._id, newRoleValue);
-          setActionMsg(`Successfully changed ${targetUser.name}'s role to ${roleLabels[newRoleValue]}.`);
+          await adminApi.deleteUser(targetUser._id);
+          setActionMsg(`Removed ${targetUser.name} from directory.`);
+          setConfirmDialog(null);
           fetchUsers();
         } catch (err) {
           setActionErr(getErrorMessage(err));
-        } finally {
           setConfirmDialog(null);
         }
       },
@@ -119,42 +142,20 @@ export default function AdminSettings() {
   const handleStatusToggle = (targetUser) => {
     const willDeactivate = targetUser.isActive !== false;
     setConfirmDialog({
-      title: `${willDeactivate ? "Deactivate" : "Reactivate"} Account`,
+      title: willDeactivate ? "Deactivate User Access" : "Reactivate User Access",
       message: willDeactivate
-        ? `Are you sure you want to deactivate ${targetUser.name}'s account? They will be unable to log in until reactivated.`
-        : `Reactivate ${targetUser.name}'s account to restore full access?`,
-      confirmText: willDeactivate ? "Deactivate Account" : "Reactivate Account",
-      confirmTone: willDeactivate ? "clay" : "pine",
+        ? `Deactivate ${targetUser.name}? They will be blocked from logging into Ridgeline.`
+        : `Reactivate ${targetUser.name}? They will regain immediate access to their courses.`,
+      confirmText: willDeactivate ? "Deactivate" : "Activate",
+      confirmTone: willDeactivate ? "danger" : "primary",
       action: async () => {
         try {
-          setActionErr("");
-          const res = await adminApi.toggleUserStatus(targetUser._id);
-          setActionMsg(res.data.message);
-          fetchUsers();
-        } catch (err) {
-          setActionErr(getErrorMessage(err));
-        } finally {
+          await adminApi.toggleUserStatus(targetUser._id);
+          setActionMsg(`Updated access status for ${targetUser.name}.`);
           setConfirmDialog(null);
-        }
-      },
-    });
-  };
-
-  const handleDeleteUser = (targetUser) => {
-    setConfirmDialog({
-      title: "Delete User Account",
-      message: `CAUTION: Are you sure you want to permanently delete ${targetUser.name} (${targetUser.email})? This action cannot be undone.`,
-      confirmText: "Delete Permanently",
-      confirmTone: "clay",
-      action: async () => {
-        try {
-          setActionErr("");
-          await adminApi.deleteUser(targetUser._id);
-          setActionMsg(`Account for ${targetUser.name} was permanently deleted.`);
           fetchUsers();
         } catch (err) {
           setActionErr(getErrorMessage(err));
-        } finally {
           setConfirmDialog(null);
         }
       },
@@ -162,47 +163,47 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink dark:text-dark-ink sm:text-3xl">
-          User Management & System Settings
+        <h1 className="type-display text-text-primary">
+          User Directory & System Settings
         </h1>
-        <p className="mt-1 text-sm text-ink-soft dark:text-dark-ink-soft">
-          Audit all platform accounts, configure administrative privileges, toggle access status, and maintain student rosters.
+        <p className="mt-1 type-body text-text-secondary">
+          Audit platform accounts, configure administrative privileges, and broadcast institutional announcements
         </p>
       </div>
 
-      {actionMsg && <Alert tone="pine">{actionMsg}</Alert>}
-      {actionErr && <Alert tone="clay">{actionErr}</Alert>}
+      {actionMsg && <Alert tone="success">{actionMsg}</Alert>}
+      {actionErr && <Alert tone="danger">{actionErr}</Alert>}
 
       {/* Send Notification */}
-      <Card>
-        <div className="flex items-center gap-3 border-b border-border/70 pb-4 dark:border-dark-border/70">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pine/10 text-pine dark:bg-pine-light/10 dark:text-pine-light">
-            <Megaphone size={20} />
+      <Card className="p-6">
+        <div className="flex items-center gap-3.5 border-b border-border-subtle pb-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-border-subtle bg-bg-surface-raised text-text-secondary">
+            <Megaphone size={18} />
           </div>
           <div>
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">Send Notification</h2>
-            <p className="text-xs text-ink-soft dark:text-dark-ink-soft">
-              Broadcast an announcement to everyone, all students, all admins, or a specific person.
+            <h2 className="type-h3 text-text-primary">Broadcast Institutional Announcement</h2>
+            <p className="type-body-sm text-text-secondary">
+              Dispatch notifications to student rosters, faculty, or individual accounts
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSendNotification} className="mt-5 space-y-4">
-          {notifErr && <Alert tone="clay">{notifErr}</Alert>}
-          {notifMsg && <Alert tone="pine">{notifMsg}</Alert>}
+        <form onSubmit={handleSendNotification} className="mt-6 space-y-4">
+          {notifErr && <Alert tone="danger">{notifErr}</Alert>}
+          {notifMsg && <Alert tone="success">{notifMsg}</Alert>}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Title"
+              label="Notification Title"
               value={notifForm.title}
               onChange={(e) => setNotifForm({ ...notifForm, title: e.target.value })}
-              placeholder="e.g. Scheduled maintenance tonight"
+              placeholder="e.g. Scheduled Maintenance Window"
               required
             />
             <Input
-              label="Link (optional)"
+              label="Destination Link (Optional)"
               value={notifForm.link}
               onChange={(e) => setNotifForm({ ...notifForm, link: e.target.value })}
               placeholder="/dashboard"
@@ -210,262 +211,256 @@ export default function AdminSettings() {
           </div>
 
           <Textarea
-            label="Message"
+            label="Message Body"
             rows={3}
             value={notifForm.message}
             onChange={(e) => setNotifForm({ ...notifForm, message: e.target.value })}
-            placeholder="Write the notification message..."
+            placeholder="Write the institutional announcement text..."
             required
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink dark:text-dark-ink">Send to</label>
-              <select
-                value={notifForm.audience}
-                onChange={(e) => setNotifForm({ ...notifForm, audience: e.target.value, userId: "" })}
-                className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-ink outline-none focus:border-pine dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink"
-              >
-                <option value="all">Everyone</option>
-                <option value="students">All Students</option>
-                <option value="admins">All Admins</option>
-                <option value="specific">Specific Person</option>
-              </select>
-            </div>
+            <Select
+              label="Target Audience"
+              value={notifForm.audience}
+              onChange={(e) => setNotifForm({ ...notifForm, audience: e.target.value })}
+            >
+              <option value="all">All Registered Users</option>
+              <option value="students">Enrolled Students Only</option>
+              <option value="admins">Administrators Only</option>
+              <option value="specific">Specific User Account</option>
+            </Select>
 
             {notifForm.audience === "specific" && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink dark:text-dark-ink">Person</label>
-                <select
-                  value={notifForm.userId}
-                  onChange={(e) => setNotifForm({ ...notifForm, userId: e.target.value })}
-                  className="w-full rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-ink outline-none focus:border-pine dark:border-dark-border dark:bg-dark-surface-raised dark:text-dark-ink"
-                >
-                  <option value="">-- Select a person --</option>
-                  {allUsers.map((u) => (
-                    <option key={u._id} value={u._id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Input
+                label="Target User ID"
+                value={notifForm.userId}
+                onChange={(e) => setNotifForm({ ...notifForm, userId: e.target.value })}
+                placeholder="User Object ID"
+                required
+              />
             )}
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button type="submit" tone="pine" disabled={sendingNotif}>
-              <Send size={16} className="mr-1.5" />
-              {sendingNotif ? "Sending..." : "Send Notification"}
+            <Button type="submit" variant="primary" disabled={sendingNotif}>
+              <Send size={14} className="mr-1.5" />
+              {sendingNotif ? "Broadcasting…" : "Send Announcement"}
             </Button>
           </div>
         </form>
       </Card>
 
-      {/* Search and Filters */}
-      <Card className="p-4">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-2.5 text-ink-soft dark:text-dark-ink-soft" size={16} />
-            <input
-              type="text"
-              placeholder="Search users by name or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2 text-sm text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
-            />
+      {/* Directory Management Table */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="type-h3 text-text-primary">
+              Institutional User Directory
+            </h2>
+            <span className="type-caption text-text-tertiary">
+              {users.length} accounts found
+            </span>
           </div>
 
-          <div className="flex w-full sm:w-auto items-center gap-2">
-            <select
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name or email…"
+                className="h-9 rounded-[6px] border border-border-default bg-bg-surface pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-primary-500 focus:outline-none"
+              />
+            </div>
+
+            <Select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+              className="w-auto h-9"
             >
               <option value="all">All Roles</option>
-              <option value="student">Students</option>
-              <option value="admin">Administrators</option>
-            </select>
+              <option value="student">Student</option>
+              <option value="admin">Administrator</option>
+            </Select>
 
-            <select
+            <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
+              className="w-auto h-9"
             >
               <option value="all">All Statuses</option>
-              <option value="active">Active Only</option>
-              <option value="deactivated">Deactivated Only</option>
-            </select>
+              <option value="active">Active</option>
+              <option value="inactive">Deactivated</option>
+            </Select>
 
-            <Button type="submit" size="sm" tone="secondary">
-              Filter
+            <Button size="sm" variant="secondary" onClick={fetchUsers} title="Refresh directory">
+              <RefreshCw size={14} className={loadingUsers ? "animate-spin" : ""} />
             </Button>
           </div>
-        </form>
-      </Card>
-
-      {/* Users Table */}
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Spinner size={32} />
         </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm dark:border-dark-border dark:bg-dark-surface">
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left text-sm">
-              <thead className="border-b border-border bg-surface-sunken/60 text-xs font-semibold text-ink-soft uppercase dark:border-dark-border dark:bg-dark-surface-sunken/60 dark:text-dark-ink-soft">
-                <tr>
-                  <th className="w-[22%] px-5 py-3.5 align-middle">User</th>
-                  <th className="w-[14%] px-5 py-3.5 align-middle whitespace-nowrap">Role</th>
-                  <th className="w-[10%] px-5 py-3.5 align-middle whitespace-nowrap">Status</th>
-                  <th className="w-[20%] px-5 py-3.5 align-middle">Department</th>
-                  <th className="w-[10%] px-5 py-3.5 align-middle whitespace-nowrap">Joined</th>
-                  <th className="w-[16%] px-5 py-3.5 align-middle whitespace-nowrap">Actions</th>
-                  <th className="w-[8%] px-5 py-3.5 align-middle text-right whitespace-nowrap">Delete</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60 dark:divide-dark-border/60">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-sm text-ink-soft dark:text-dark-ink-soft">
-                      No matching users found.
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((u) => {
-                    const isSelf = u._id === currentAdmin?.id || u._id === currentAdmin?._id;
-                    const isActive = u.isActive !== false;
-                    const isProtected = u.isSuperAdmin;
-                    const canManageStatus = !isSelf && !isProtected;
 
-                    return (
-                      <tr key={u._id} className="transition-colors hover:bg-surface-sunken/40 dark:hover:bg-dark-surface-sunken/40">
-                        <td className="px-5 py-4 align-middle">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-pine/10 font-bold text-pine dark:bg-pine-light/10 dark:text-pine-light">
-                              {u.avatar ? (
-                                <img src={u.avatar} alt={u.name} className="h-full w-full rounded-full object-cover" />
-                              ) : (
-                                u.name?.[0]?.toUpperCase()
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-ink dark:text-dark-ink flex items-center gap-1.5">
-                                {u.name}
-                                {isSelf && (
-                                  <span className="rounded bg-pine/10 px-1.5 py-0.2 text-[10px] font-bold text-pine dark:bg-pine-light/10 dark:text-pine-light">
-                                    You
-                                  </span>
-                                )}
-                                {isProtected && (
-                                  <span
-                                    className="inline-flex items-center gap-1 rounded bg-amber/15 px-1.5 py-0.2 text-[10px] font-bold text-amber dark:text-amber-light"
-                                    title="Super admin — protected account"
-                                  >
-                                    <ShieldCheck size={10} /> Super Admin
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4 align-middle">
-                          {currentAdmin?.isSuperAdmin && !isProtected && !isSelf ? (
-                            <select
-                              value={u.isSuperAdmin ? "superadmin" : u.role}
-                              onChange={(e) => handleRoleChange(u, e.target.value)}
-                              className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-medium text-ink focus:border-pine focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-dark-ink"
-                            >
-                              <option value="student">Student</option>
-                              <option value="admin">Admin</option>
-                              <option value="superadmin">Super Admin</option>
-                            </select>
-                          ) : (
-                            <Badge tone={u.isSuperAdmin || u.role === "admin" ? "amber" : "neutral"} className="capitalize">
-                              {u.isSuperAdmin ? "Super Admin" : u.role}
-                            </Badge>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 align-middle">
-                          {isActive ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                              Deactivated
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 align-middle text-xs leading-snug text-ink-soft dark:text-dark-ink-soft">
-                          {u.department || "Computer Science"}
-                        </td>
-
-                        <td className="px-5 py-4 align-middle whitespace-nowrap text-xs text-ink-soft dark:text-dark-ink-soft">
-                          {new Date(u.createdAt).toLocaleDateString()}
-                        </td>
-
-                        <td className="px-5 py-4 align-middle">
-                          <Button
-                            size="xs"
-                            tone={isActive ? "secondary" : "pine"}
-                            onClick={() => handleStatusToggle(u)}
-                            disabled={!canManageStatus}
-                            title={isProtected ? "Super admin account is protected" : isActive ? "Deactivate User Access" : "Activate User Access"}
-                            className="w-full justify-center"
-                          >
-                            {isActive ? "Deactivate" : "Activate"}
-                          </Button>
-                        </td>
-
-                        <td className="px-5 py-4 align-middle text-right">
-                          <Button
-                            size="xs"
-                            tone="clay"
-                            onClick={() => handleDeleteUser(u)}
-                            disabled={!canManageStatus}
-                            title={isProtected ? "Super admin account is protected" : "Delete Account"}
-                          >
-                            <Trash2 size={13} />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+        {loadingUsers ? (
+          <div className="flex justify-center py-16">
+            <Spinner size={32} />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="overflow-hidden rounded-[10px] border border-border-subtle bg-bg-surface shadow-card">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left type-body">
+                <thead className="border-b border-border-subtle bg-bg-surface-raised text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+                  <tr>
+                    <th className="px-5 py-3.5">User</th>
+                    <th className="px-5 py-3.5">Role</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">Department</th>
+                    <th className="px-5 py-3.5">Joined</th>
+                    <th className="px-5 py-3.5">Access</th>
+                    <th className="px-5 py-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-8 text-center type-body-sm text-text-tertiary">
+                        No matching user records located.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((u) => {
+                      const isSelf = u._id === currentAdmin?.id || u._id === currentAdmin?._id;
+                      const isActive = u.isActive !== false;
+                      const isProtected = u.isSuperAdmin;
+                      const canManageStatus = !isSelf && !isProtected;
+
+                      return (
+                        <tr key={u._id} className="transition-colors hover:bg-bg-surface-raised/50">
+                          <td className="px-5 py-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white">
+                                {u.avatar ? (
+                                  <img src={u.avatar} alt={u.name} className="h-full w-full rounded-full object-cover" />
+                                ) : (
+                                  u.name?.[0]?.toUpperCase()
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-text-primary flex items-center gap-1.5">
+                                  {u.name}
+                                  {isSelf && (
+                                    <span className="rounded-[4px] border border-primary-500/20 bg-primary-50 px-1.5 py-0.2 text-[10px] font-semibold text-primary-700 dark:bg-primary-600/15 dark:text-primary-400">
+                                      You
+                                    </span>
+                                  )}
+                                  {isProtected && (
+                                    <span className="inline-flex items-center gap-1 rounded-[4px] border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                                      <ShieldCheck size={10} /> Super Admin
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="type-body-sm text-text-secondary">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-5 py-4 align-middle">
+                            {currentAdmin?.isSuperAdmin && !isProtected && !isSelf ? (
+                              <select
+                                value={u.isSuperAdmin ? "superadmin" : u.role}
+                                onChange={(e) => handleRoleChange(u, e.target.value)}
+                                className="w-full rounded-[6px] border border-border-default bg-bg-surface px-2 py-1.5 text-xs font-medium text-text-primary focus:border-primary-500 focus:outline-none"
+                              >
+                                <option value="student">Student</option>
+                                <option value="admin">Administrator</option>
+                                <option value="superadmin">Super Admin</option>
+                              </select>
+                            ) : (
+                              <span className="type-caption text-text-secondary">
+                                {u.isSuperAdmin ? "Super Admin" : u.role}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 align-middle">
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                Deactivated
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 align-middle type-body-sm text-text-secondary">
+                            {u.department || "Computer Science"}
+                          </td>
+
+                          <td className="px-5 py-4 align-middle whitespace-nowrap type-body-sm text-text-secondary">
+                            {new Date(u.createdAt).toLocaleDateString()}
+                          </td>
+
+                          <td className="px-5 py-4 align-middle">
+                            <Button
+                              size="xs"
+                              variant={isActive ? "secondary" : "primary"}
+                              onClick={() => handleStatusToggle(u)}
+                              disabled={!canManageStatus}
+                              title={isProtected ? "Protected account" : isActive ? "Deactivate User Access" : "Activate User Access"}
+                              className="w-full justify-center"
+                            >
+                              {isActive ? "Deactivate" : "Activate"}
+                            </Button>
+                          </td>
+
+                          <td className="px-5 py-4 align-middle text-right">
+                            <Button
+                              size="xs"
+                              variant="danger"
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={!canManageStatus}
+                              title={isProtected ? "Protected account" : "Delete Account"}
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Confirmation Modal */}
       {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl dark:bg-dark-surface border border-border dark:border-dark-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[12px] bg-bg-surface-raised p-6 shadow-raised border border-border-subtle">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber/15 text-amber">
-                <AlertTriangle size={20} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-amber-500/20 bg-amber-500/10 text-amber-500">
+                <AlertTriangle size={18} />
               </div>
-              <h3 className="font-display text-base font-bold text-ink dark:text-dark-ink">
+              <h3 className="type-h3 text-text-primary">
                 {confirmDialog.title}
               </h3>
             </div>
-            <p className="mt-3 text-xs sm:text-sm text-ink-soft dark:text-dark-ink-soft leading-relaxed">
+            <p className="mt-3 type-body-sm text-text-secondary leading-relaxed">
               {confirmDialog.message}
             </p>
             <div className="mt-6 flex justify-end gap-2.5">
-              <Button size="sm" tone="secondary" onClick={() => setConfirmDialog(null)}>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDialog(null)}>
                 Cancel
               </Button>
               <Button
                 size="sm"
-                tone={confirmDialog.confirmTone || "pine"}
+                variant={confirmDialog.confirmTone === "danger" ? "danger" : "primary"}
                 onClick={confirmDialog.action}
               >
                 {confirmDialog.confirmText || "Confirm"}

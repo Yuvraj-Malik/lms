@@ -82,26 +82,28 @@ const ManageModules = () => {
   }
 
   return (
-    <div>
-      <Link to="/admin/courses" className="text-xs font-medium text-pine dark:text-amber-light">
-        ← Back to Courses
-      </Link>
-      <div className="mt-2 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-semibold text-ink dark:text-dark-ink">
-          Modules — {course.title}
-        </h1>
-        <Button onClick={openNew}>
-          <Plus size={16} /> Add module
-        </Button>
+    <div className="space-y-8">
+      <div>
+        <Link to="/admin/courses" className="inline-flex items-center gap-1.5 type-body-sm text-primary-500 hover:text-primary-600 transition-colors">
+          ← Back to Courses
+        </Link>
+        <div className="mt-3 flex items-center justify-between">
+          <h1 className="type-display text-text-primary">
+            Curriculum Modules — {course.title}
+          </h1>
+          <Button variant="primary" onClick={openNew}>
+            <Plus size={16} /> Add Module
+          </Button>
+        </div>
       </div>
 
       {showForm && (
-        <Card className="mt-6">
+        <Card className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-base font-semibold text-ink dark:text-dark-ink">
-              {editingId ? "Edit module" : "New module"}
+            <h2 className="type-h3 text-text-primary">
+              {editingId ? "Edit Module" : "New Module"}
             </h2>
-            <button onClick={() => setShowForm(false)} className="text-ink-soft dark:text-dark-ink-soft">
+            <button onClick={() => setShowForm(false)} className="text-text-tertiary hover:text-text-primary transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -136,37 +138,39 @@ const ManageModules = () => {
               value={form.resourceLinks}
               onChange={(e) => setForm({ ...form, resourceLinks: e.target.value })}
             />
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save module"}
-            </Button>
+            <div className="pt-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save module"}
+              </Button>
+            </div>
           </form>
         </Card>
       )}
 
-      <div className="mt-6 space-y-2">
+      <div className="space-y-3">
         {modules.map((m) => (
-          <Card key={m._id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-sunken text-xs font-medium text-ink-soft dark:bg-dark-surface-sunken dark:text-dark-ink-soft">
+          <Card key={m._id} className="p-5 flex items-center justify-between shadow-card">
+            <div className="flex items-center gap-3.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-bg-surface-raised border border-border-subtle type-caption font-semibold text-text-secondary">
                 {m.moduleOrder}
               </span>
               <div>
-                <p className="text-sm font-medium text-ink dark:text-dark-ink">{m.title}</p>
-                {m.description && <p className="text-xs text-ink-soft dark:text-dark-ink-soft">{m.description}</p>}
+                <p className="type-h3 text-text-primary">{m.title}</p>
+                {m.description && <p className="type-body-sm text-text-secondary mt-0.5">{m.description}</p>}
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => openEdit(m)}>
+              <Button variant="secondary" size="sm" onClick={() => openEdit(m)}>
                 <Pencil size={14} />
               </Button>
-              <Button variant="danger" onClick={() => handleDelete(m._id, m.title)}>
+              <Button variant="danger" size="sm" onClick={() => handleDelete(m._id, m.title)}>
                 <Trash2 size={14} />
               </Button>
             </div>
           </Card>
         ))}
         {modules.length === 0 && (
-          <p className="text-sm text-ink-soft dark:text-dark-ink-soft">No modules yet — add the first one.</p>
+          <p className="type-body text-text-secondary">No modules configured yet — add the first module above.</p>
         )}
       </div>
     </div>
