@@ -4,11 +4,13 @@ import {
   getMyEnrollments,
   getEnrollmentsForCourse,
   getEnrollmentStatus,
+  verifyCertificate,
 } from "../controllers/enrollmentController.js";
 import { protect, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.get("/verify/:credentialId", verifyCertificate);
 router.post("/:courseId", protect, requireRole("student"), enrollInCourse);
 router.get("/my", protect, requireRole("student"), getMyEnrollments);
 router.get("/status/:courseId", protect, requireRole("student"), getEnrollmentStatus);

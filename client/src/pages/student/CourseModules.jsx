@@ -9,28 +9,37 @@ import {
   ExternalLink,
   Award,
   ArrowLeft,
-  CircleDot
+  CircleDot,
+  MessageSquare,
+  FileEdit,
+  HelpCircle
 } from "lucide-react";
 import { courseApi, enrollmentApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
 import { Card, Button, Spinner, Alert, StatusBadge } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
+import ModuleQuiz from "../../components/ModuleQuiz.jsx";
+import StudyScratchpad from "../../components/StudyScratchpad.jsx";
+import CourseDiscussion from "../../components/CourseDiscussion.jsx";
 
 export default function CourseModules() {
-  const { id } = useParams();
+  const { courseId, id } = useParams();
+  const effectiveId = courseId || id;
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [enrollment, setEnrollment] = useState(null);
   const [openModuleId, setOpenModuleId] = useState(null);
+  const [activeTab, setActiveTab] = useState("modules");
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState(null);
   const [error, setError] = useState("");
 
   const fetchCourseData = async () => {
+    if (!effectiveId) return;
     try {
       setLoading(true);
       const [cRes, eRes] = await Promise.all([
-        courseApi.get(id),
+        courseApi.get(effectiveId),
         enrollmentApi.my(),
       ]);
 
@@ -41,13 +50,19 @@ export default function CourseModules() {
       setModules(sortedMods);
 
       const myEnr = (eRes.data?.enrollments || []).find(
-        (e) => (e.course?._id || e.course) === id
+        (e) => (e.course?._id || e.course) === effectiveId
       );
       setEnrollment(myEnr || null);
 
       if (sortedMods.length > 0 && !openModuleId) {
-        const completedSet = new Set(myEnr?.completedModules || []);
-        const firstIncomplete = sortedMods.find((m) => !completedSet.has(m._id));
+        const completedSet = new Set(
+          (myEnr?.completedModules || []).map((m) =>
+            typeof m === "object" && m?._id ? m._id.toString() : m.toString()
+          )
+        );
+        const firstIncomplete = sortedMods.find(
+          (m) => !completedSet.has(m._id.toString())
+        );
         setOpenModuleId(firstIncomplete ? firstIncomplete._id : sortedMods[0]._id);
       }
     } catch (err) {
@@ -59,12 +74,12 @@ export default function CourseModules() {
 
   useEffect(() => {
     fetchCourseData();
-  }, [id]);
+  }, [effectiveId]);
 
   const handleComplete = async (modId) => {
     try {
       setCompletingId(modId);
-      const res = await enrollmentApi.completeModule(id, modId);
+      const res = await enrollmentApi.completeModule(effectiveId, modId);
       setEnrollment(res.data.enrollment);
     } catch (err) {
       alert(getErrorMessage(err));
@@ -81,11 +96,60 @@ export default function CourseModules() {
     );
   }
 
-  if (!course || !enrollment) return null;
+  if (!course) {
+    return (
+      <div className="mx-auto max-w-4xl py-12 px-4 space-y-4">
+        <Link
+          to="/dashboard/my-courses"
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Enrolled Courses
+        </Link>
+        <Card className="p-8 text-center space-y-3">
+          <p className="type-h3 text-text-primary">Course Not Found</p>
+          <p className="type-body text-text-secondary">{error || "Could not load course information."}</p>
+        </Card>
+      </div>
+    );
+  }
 
-  const completedModules = new Set(enrollment.completedModules || []);
-  const completedCount = completedModules.size;
+  if (!enrollment) {
+    return (
+      <div className="mx-auto max-w-4xl py-12 px-4 space-y-4">
+        <Link
+          to="/dashboard/my-courses"
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Enrolled Courses
+        </Link>
+        <Card className="p-8 text-center space-y-4">
+          <p className="type-h3 text-text-primary">Not Enrolled in This Course</p>
+          <p className="type-body text-text-secondary">
+            You must be enrolled in <span className="font-semibold text-text-primary">{course.title}</span> to access curriculum lessons, quizzes, and learning notes.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Link to={`/dashboard/my-courses/${course._id}/details`}>
+              <Button variant="primary">View Course Syllabus & Enroll</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const completedModuleIds = new Set(
+    (enrollment.completedModules || []).map((m) =>
+      typeof m === "object" && m?._id ? m._id.toString() : m.toString()
+    )
+  );
+  // Match only completed modules that belong to this course
+  const validCompleted = modules.filter((m) => completedModuleIds.has(m._id.toString()));
+  const completedCount = validCompleted.length;
   const totalCount = modules.length;
+  const displayProgress =
+    totalCount > 0
+      ? Math.round((completedCount / totalCount) * 100)
+      : 0;
   const isAllCompleted = totalCount > 0 && completedCount >= totalCount;
 
   return (
@@ -132,10 +196,10 @@ export default function CourseModules() {
 
           <div className="flex flex-col sm:items-end shrink-0">
             <span className="type-caption text-text-primary font-semibold">
-              {completedCount} of {totalCount} completed ({enrollment.progress}%)
+              {completedCount} of {totalCount} completed ({displayProgress}%)
             </span>
             <div className="w-48 mt-2">
-              <ProgressBar value={enrollment.progress} />
+              <ProgressBar value={displayProgress} />
             </div>
             {isAllCompleted && (
               <span className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -146,142 +210,208 @@ export default function CourseModules() {
         </div>
       </Card>
 
-      {/* Module List Accordion */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="type-h3 text-text-primary">
-            Curriculum Modules ({modules.length})
-          </h2>
-          <span className="type-caption text-text-tertiary">
-            Select module to view lessons
-          </span>
-        </div>
+      {/* Navigation Tabs */}
+      <div className="flex gap-1 rounded-[8px] border border-border-subtle bg-bg-surface-raised p-1">
+        <button
+          onClick={() => setActiveTab("modules")}
+          className={`flex-1 rounded-[6px] px-4 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+            activeTab === "modules"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <BookOpen size={15} />
+          Curriculum Modules ({modules.length})
+        </button>
 
-        {modules.map((m) => {
-          const done = completedModules.has(m._id);
-          const open = openModuleId === m._id;
+        <button
+          onClick={() => setActiveTab("discussion")}
+          className={`flex-1 rounded-[6px] px-4 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+            activeTab === "discussion"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <MessageSquare size={15} />
+          Course Q&A & Discussion
+        </button>
 
-          return (
-            <Card
-              key={m._id}
-              className={`p-5 transition-all duration-150 ${
-                open ? "border-primary-500/30" : ""
-              }`}
-            >
-              <button
-                onClick={() => setOpenModuleId(open ? null : m._id)}
-                className="flex w-full items-center justify-between text-left focus:outline-none"
+        <button
+          onClick={() => setActiveTab("notes")}
+          className={`flex-1 rounded-[6px] px-4 py-2.5 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+            activeTab === "notes"
+              ? "bg-bg-surface text-text-primary shadow-sm font-semibold"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <FileEdit size={15} />
+          Study Scratchpad
+        </button>
+      </div>
+
+      {/* Tab: Course Discussion */}
+      {activeTab === "discussion" && (
+        <CourseDiscussion courseId={effectiveId} courseTitle={course.title} />
+      )}
+
+      {/* Tab: Study Scratchpad */}
+      {activeTab === "notes" && (
+        <StudyScratchpad
+          courseId={effectiveId}
+          courseTitle={course.title}
+          activeModuleTitle={modules.find((m) => m._id === openModuleId)?.title}
+        />
+      )}
+
+      {/* Tab: Modules List Accordion */}
+      {activeTab === "modules" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="type-h3 text-text-primary">
+              Curriculum Modules ({modules.length})
+            </h2>
+            <span className="type-caption text-text-tertiary">
+              Complete lessons and knowledge checks
+            </span>
+          </div>
+
+          {modules.map((m) => {
+            const done = completedModuleIds.has(m._id.toString());
+            const open = openModuleId === m._id;
+
+            return (
+              <Card
+                key={m._id}
+                className={`p-5 transition-all duration-150 ${
+                  open ? "border-primary-500/30" : ""
+                }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border text-xs font-semibold ${
-                      done
-                        ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "border-border-subtle bg-bg-surface-raised text-text-secondary"
-                    }`}
-                  >
-                    {done ? <CheckCircle2 size={16} /> : m.moduleOrder}
+                <button
+                  onClick={() => setOpenModuleId(open ? null : m._id)}
+                  className="flex w-full items-center justify-between text-left focus:outline-none"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border text-xs font-semibold ${
+                        done
+                          ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "border-border-subtle bg-bg-surface-raised text-text-secondary"
+                      }`}
+                    >
+                      {done ? <CheckCircle2 size={16} /> : m.moduleOrder}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="type-caption text-text-tertiary">
+                          Module {m.moduleOrder}
+                        </span>
+                        {done && (
+                          <span className="rounded-[4px] bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400">
+                            Complete
+                          </span>
+                        )}
+                      </div>
+                      <p className="type-h3 text-text-primary truncate mt-0.5">
+                        {m.title}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="type-caption text-text-tertiary">
-                        Module {m.moduleOrder}
+
+                  <div className="flex items-center gap-2 text-text-secondary">
+                    <span className="type-caption hidden sm:inline">
+                      {open ? "Collapse" : "Expand"}
+                    </span>
+                    {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {open && (
+                  <div className="mt-4 border-t border-border-subtle pt-4 space-y-5">
+                    {m.description && (
+                      <p className="type-body text-text-secondary">
+                        {m.description}
+                      </p>
+                    )}
+
+                    {m.notes && (
+                      <div className="rounded-[6px] border border-border-subtle bg-bg-surface-raised p-4 text-xs leading-relaxed text-text-primary">
+                        <div className="flex items-center gap-1.5 font-semibold text-text-primary mb-2">
+                          <FileText size={14} className="text-primary-600 dark:text-primary-400" />
+                          Lecture Notes & Study Material:
+                        </div>
+                        <p className="whitespace-pre-line type-body-sm text-text-secondary">
+                          {m.notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {m.resourceLinks?.length > 0 && (
+                      <div>
+                        <h4 className="type-caption text-text-tertiary mb-2">
+                          Attached Resources:
+                        </h4>
+                        <ul className="space-y-1.5">
+                          {m.resourceLinks.map((link, i) => (
+                            <li key={i}>
+                              <a
+                                href={link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-[4px] bg-bg-surface-raised px-2.5 py-1 type-body-sm text-primary-600 hover:underline dark:text-primary-400"
+                              >
+                                <ExternalLink size={12} /> {link}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Integrated Knowledge Check Quiz Engine */}
+                    <div className="pt-1">
+                      <ModuleQuiz
+                        module={m}
+                        isCompleted={done}
+                        onPassed={() => {
+                          if (!done) handleComplete(m._id);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-border-subtle">
+                      <span className="type-body-sm text-text-secondary">
+                        Status: {done ? "Completed" : "Pending completion"}
                       </span>
-                      {done && (
-                        <span className="rounded-[4px] bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400">
-                          Complete
+                      {!done ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleComplete(m._id)}
+                          disabled={completingId === m._id}
+                          className="gap-1.5"
+                        >
+                          <CheckCircle2 size={14} />
+                          {completingId === m._id ? "Saving…" : "Mark as Complete"}
+                        </Button>
+                      ) : (
+                        <span className="type-body-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 size={14} /> Completed
                         </span>
                       )}
                     </div>
-                    <p className="type-h3 text-text-primary truncate mt-0.5">
-                      {m.title}
-                    </p>
                   </div>
-                </div>
+                )}
+              </Card>
+            );
+          })}
 
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <span className="type-caption hidden sm:inline">
-                    {open ? "Collapse" : "Expand"}
-                  </span>
-                  {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-              </button>
-
-              {open && (
-                <div className="mt-4 border-t border-border-subtle pt-4 space-y-4">
-                  {m.description && (
-                    <p className="type-body text-text-secondary">
-                      {m.description}
-                    </p>
-                  )}
-
-                  {m.notes && (
-                    <div className="rounded-[6px] border border-border-subtle bg-bg-surface-raised p-4 text-xs leading-relaxed text-text-primary">
-                      <div className="flex items-center gap-1.5 font-semibold text-text-primary mb-2">
-                        <FileText size={14} className="text-primary-600 dark:text-primary-400" />
-                        Lecture Notes & Study Material:
-                      </div>
-                      <p className="whitespace-pre-line type-body-sm text-text-secondary">
-                        {m.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {m.resourceLinks?.length > 0 && (
-                    <div>
-                      <h4 className="type-caption text-text-tertiary mb-2">
-                        Attached Resources:
-                      </h4>
-                      <ul className="space-y-1.5">
-                        {m.resourceLinks.map((link, i) => (
-                          <li key={i}>
-                            <a
-                              href={link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-[4px] bg-bg-surface-raised px-2.5 py-1 type-body-sm text-primary-600 hover:underline dark:text-primary-400"
-                            >
-                              <ExternalLink size={12} /> {link}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
-                    <span className="type-body-sm text-text-secondary">
-                      Status: {done ? "Completed" : "Pending completion"}
-                    </span>
-                    {!done ? (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleComplete(m._id)}
-                        disabled={completingId === m._id}
-                        className="gap-1.5"
-                      >
-                        <CheckCircle2 size={14} />
-                        {completingId === m._id ? "Saving…" : "Mark as Complete"}
-                      </Button>
-                    ) : (
-                      <span className="type-body-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 size={14} /> Completed
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
+          {modules.length === 0 && (
+            <Card className="p-8 text-center type-body text-text-secondary">
+              No modules published yet for this course.
             </Card>
-          );
-        })}
-
-        {modules.length === 0 && (
-          <Card className="p-8 text-center type-body text-text-secondary">
-            No modules published yet for this course.
-          </Card>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

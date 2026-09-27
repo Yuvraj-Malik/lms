@@ -1,4 +1,5 @@
-import { ShieldCheck, Award, Printer, CheckCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShieldCheck, Award, Printer, CheckCircle, ExternalLink } from "lucide-react";
 import { Button } from "./ui.jsx";
 
 export const CertificateSeal = ({ size = 64, className = "" }) => (
@@ -172,10 +173,14 @@ export const CertificateCard = ({ cert, onPrint }) => {
       </div>
 
       {/* Card Action Bar */}
-      <div className="flex items-center justify-between p-4 bg-bg-surface">
-        <span className="type-body-sm text-text-secondary">
-          100% Curriculum Completed
-        </span>
+      <div className="flex items-center justify-between p-4 bg-bg-surface gap-3">
+        <Link
+          to={`/verify/${cert.id}`}
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-primary-500 hover:text-primary-600 transition-colors"
+        >
+          <ExternalLink size={13} />
+          Verify Credential
+        </Link>
         <Button
           size="sm"
           variant="secondary"

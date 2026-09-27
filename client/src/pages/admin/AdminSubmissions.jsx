@@ -16,6 +16,8 @@ import {
 import { adminApi, submissionApi } from "../../api/endpoints.js";
 import { Card, Button, Input, Textarea, StatusBadge, Spinner, Alert, EmptyState } from "../../components/ui.jsx";
 import { getErrorMessage } from "../../api/client.js";
+import { exportToCsv } from "../../utils/csvExport.js";
+import { Download } from "lucide-react";
 
 function SubmissionItem({ submission, onGraded }) {
   const [marks, setMarks] = useState(
@@ -234,6 +236,34 @@ export default function AdminSubmissions() {
   if (activeTab === "pending") filtered = pendingList;
   if (activeTab === "graded") filtered = gradedList;
 
+  const handleExportCsv = () => {
+    const rows = filtered.map((s) => ({
+      studentName: s.student?.name || "Unknown",
+      studentEmail: s.student?.email || "",
+      course: s.assignment?.course?.title || "",
+      assignment: s.assignment?.title || "",
+      submissionType: s.submissionType || "text",
+      submittedAt: s.submissionDate ? new Date(s.submissionDate).toLocaleString() : "",
+      status: s.status || "submitted",
+      marks: s.marks !== undefined && s.marks !== null ? s.marks : "Not Graded",
+      maxMarks: s.assignment?.maximumMarks || 100,
+      feedback: s.feedback || "",
+    }));
+
+    exportToCsv("ridgeline-submissions-report", rows, [
+      { key: "studentName", label: "Student Name" },
+      { key: "studentEmail", label: "Student Email" },
+      { key: "course", label: "Course" },
+      { key: "assignment", label: "Assignment" },
+      { key: "submissionType", label: "Type" },
+      { key: "submittedAt", label: "Submitted Date" },
+      { key: "status", label: "Status" },
+      { key: "marks", label: "Marks" },
+      { key: "maxMarks", label: "Max Marks" },
+      { key: "feedback", label: "Instructor Feedback" },
+    ]);
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -245,6 +275,14 @@ export default function AdminSubmissions() {
             Review student submissions across enrolled courses and record evaluations
           </p>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleExportCsv}
+          className="gap-1.5 shrink-0"
+        >
+          <Download size={14} /> Export Submissions (CSV)
+        </Button>
       </div>
 
       {/* Segmented Filter Tabs */}

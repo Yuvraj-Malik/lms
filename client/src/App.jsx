@@ -23,6 +23,7 @@ import Register from "./pages/public/Register.jsx";
 import ForgotPassword from "./pages/public/ForgotPassword.jsx";
 import ResetPassword from "./pages/public/ResetPassword.jsx";
 import Profile from "./pages/public/Profile.jsx";
+import VerifyCertificate from "./pages/public/VerifyCertificate.jsx";
 import NotFound from "./pages/public/NotFound.jsx";
 
 import StudentDashboard from "./pages/student/StudentDashboard.jsx";
@@ -111,6 +112,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
+              <Route path="/verify/:credentialId" element={<VerifyCertificate />} />
 
               {/* Any authenticated user */}
               <Route element={<ProtectedRoute />}>

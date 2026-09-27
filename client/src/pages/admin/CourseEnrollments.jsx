@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Users, GraduationCap } from "lucide-react";
+import { Users, GraduationCap, Download } from "lucide-react";
 import { courseApi, enrollmentApi } from "../../api/endpoints.js";
-import { Card, Badge, StatusBadge, Spinner, EmptyState } from "../../components/ui.jsx";
+import { Card, Badge, StatusBadge, Button, Spinner, EmptyState } from "../../components/ui.jsx";
 import ProgressBar from "../../components/ProgressBar.jsx";
 import { getErrorMessage } from "../../api/client.js";
+import { exportToCsv } from "../../utils/csvExport.js";
 
 const CourseEnrollments = () => {
   const { courseId } = useParams();
@@ -47,20 +48,52 @@ const CourseEnrollments = () => {
     );
   }
 
+  const handleExportRoster = () => {
+    const rows = (enrollments || []).map((e) => ({
+      studentName: e.student?.name || "Unknown",
+      studentEmail: e.student?.email || "",
+      enrolledDate: e.enrollmentDate ? new Date(e.enrollmentDate).toLocaleDateString() : "",
+      modulesCompleted: e.completedModules?.length || 0,
+      progressPercent: `${e.progress || 0}%`,
+      status: e.status || "enrolled",
+    }));
+
+    exportToCsv(`${course.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}-roster`, rows, [
+      { key: "studentName", label: "Student Name" },
+      { key: "studentEmail", label: "Student Email" },
+      { key: "enrolledDate", label: "Enrollment Date" },
+      { key: "modulesCompleted", label: "Modules Completed" },
+      { key: "progressPercent", label: "Progress" },
+      { key: "status", label: "Enrollment Status" },
+    ]);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <Link to="/admin/courses" className="inline-flex items-center text-xs font-medium text-primary-500 hover:text-primary-600 transition-colors">
-          ← Back to Courses
-        </Link>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Badge>{course.category}</Badge>
-          <Badge tone="neutral">{course.difficulty}</Badge>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <Link to="/admin/courses" className="inline-flex items-center text-xs font-medium text-primary-500 hover:text-primary-600 transition-colors">
+            ← Back to Courses
+          </Link>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Badge>{course.category}</Badge>
+            <Badge tone="neutral">{course.difficulty}</Badge>
+          </div>
+          <h1 className="mt-2 type-display font-semibold text-text-primary">{course.title}</h1>
+          <p className="mt-1 flex items-center gap-1.5 type-body-sm text-text-secondary">
+            <Users size={14} /> {enrollments.length} student{enrollments.length !== 1 ? "s" : ""} enrolled
+          </p>
         </div>
-        <h1 className="mt-2 type-display font-semibold text-text-primary">{course.title}</h1>
-        <p className="mt-1 flex items-center gap-1.5 type-body-sm text-text-secondary">
-          <Users size={14} /> {enrollments.length} student{enrollments.length !== 1 ? "s" : ""} enrolled
-        </p>
+        {enrollments.length > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportRoster}
+            className="gap-1.5 shrink-0"
+          >
+            <Download size={14} /> Export Roster (CSV)
+          </Button>
+        )}
       </div>
 
       {enrollments.length === 0 ? (

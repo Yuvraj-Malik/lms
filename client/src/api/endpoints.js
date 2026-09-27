@@ -32,6 +32,7 @@ export const enrollmentApi = {
   my: () => api.get("/enrollments/my"),
   status: (courseId) => api.get(`/enrollments/status/${courseId}`),
   forCourse: (courseId) => api.get(`/enrollments/course/${courseId}`),
+  verify: (credentialId) => api.get(`/enrollments/verify/${credentialId}`),
 };
 
 export const assignmentApi = {
@@ -87,5 +88,12 @@ export const notificationApi = {
   markRead: (id) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put("/notifications/read-all"),
   clearAll: () => api.delete("/notifications/clear-all"),
+};
+
+export const discussionApi = {
+  forCourse: (courseId) => api.get(`/discussions/course/${courseId}`),
+  create: (courseId, data) => api.post(`/discussions/course/${courseId}`, data),
+  addReply: (discussionId, data) => api.post(`/discussions/${discussionId}/reply`, data),
+  toggleUpvote: (discussionId) => api.post(`/discussions/${discussionId}/upvote`),
 };
 

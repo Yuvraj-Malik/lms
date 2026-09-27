@@ -291,3 +291,20 @@ html.dark .trail-track {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Print Stylesheet for Certificate Documents ──────────────── */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+    color: #0B0E14 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  nav, footer, .print\:hidden {
+    display: none !important;
+  }
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+}

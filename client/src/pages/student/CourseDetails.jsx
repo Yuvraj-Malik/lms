@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { BookOpen, Users, ClipboardList, CheckCircle2 } from "lucide-react";
+import { BookOpen, Users, ClipboardList, CheckCircle2, ArrowLeft } from "lucide-react";
 import { courseApi, enrollmentApi } from "../../api/endpoints.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getErrorMessage } from "../../api/client.js";
@@ -8,7 +8,8 @@ import { Card, Button, Badge, StatusBadge, Spinner, Alert } from "../../componen
 import ProgressBar from "../../components/ProgressBar.jsx";
 
 const CourseDetails = () => {
-  const { id } = useParams();
+  const { courseId, id } = useParams();
+  const effectiveId = courseId || id;
   const { user } = useAuth();
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
@@ -20,8 +21,13 @@ const CourseDetails = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!effectiveId) {
+      setLoading(false);
+      setError("No course specified.");
+      return;
+    }
     courseApi
-      .get(id)
+      .get(effectiveId)
       .then(({ data }) => {
         setCourse(data.course);
         setModules(data.modules || []);
@@ -31,13 +37,14 @@ const CourseDetails = () => {
       })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [effectiveId]);
 
   const handleEnroll = async () => {
+    if (!effectiveId) return;
     setEnrolling(true);
     setError("");
     try {
-      const { data } = await enrollmentApi.enroll(id);
+      const { data } = await enrollmentApi.enroll(effectiveId);
       setEnrollment(data.enrollment);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -53,11 +60,34 @@ const CourseDetails = () => {
       </div>
     );
   }
-  if (!course) return null;
+
+  if (error || !course) {
+    return (
+      <div className="mx-auto max-w-4xl py-12 px-4 space-y-4">
+        <Link
+          to="/dashboard/my-courses"
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Courses
+        </Link>
+        <Card className="p-8 text-center space-y-4">
+          <p className="type-h3 text-text-primary">Course Not Found</p>
+          <p className="type-body text-text-secondary">{error || "The requested course could not be loaded."}</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 space-y-12">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-10">
       <div>
+        <Link
+          to="/dashboard/my-courses"
+          className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors mb-4"
+        >
+          <ArrowLeft size={14} /> Back to Enrolled Courses
+        </Link>
+
         <div className="flex flex-wrap items-center gap-2">
           <span className="type-caption rounded-[4px] border border-primary-500/20 bg-primary-50 px-2 py-0.5 text-primary-700 dark:bg-primary-600/15 dark:text-primary-400">
             {course.category}

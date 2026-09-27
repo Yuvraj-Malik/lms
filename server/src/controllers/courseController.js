@@ -45,11 +45,23 @@ export const getCourseById = asyncHandler(async (req, res) => {
   const course = await Course.findById(req.params.id);
   if (!course) return res.status(404).json({ message: "Course not found." });
 
-  const moduleCount = await Module.countDocuments({ course: course._id });
-  const assignmentCount = await Assignment.countDocuments({ course: course._id });
+  const modules = await Module.find({ course: course._id }).sort({ moduleOrder: 1 });
+  const assignments = await Assignment.find({ course: course._id }).sort({ deadline: 1 });
   const enrolledCount = await Enrollment.countDocuments({ course: course._id });
 
-  res.json({ course, moduleCount, assignmentCount, enrolledCount });
+  res.json({
+    course,
+    modules,
+    assignments,
+    counts: {
+      moduleCount: modules.length,
+      assignmentCount: assignments.length,
+      enrolledCount,
+    },
+    moduleCount: modules.length,
+    assignmentCount: assignments.length,
+    enrolledCount,
+  });
 });
 
 // @route POST /api/courses (admin)

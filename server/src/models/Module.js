@@ -8,6 +8,14 @@ const moduleSchema = new mongoose.Schema(
     notes: { type: String, default: "" },
     resourceLinks: [{ type: String }], // PDFs, videos, references, source code
     moduleOrder: { type: Number, required: true },
+    quiz: [
+      {
+        question: { type: String, required: true },
+        options: [{ type: String, required: true }],
+        answer: { type: Number, required: true },
+        explanation: { type: String, default: "" },
+      },
+    ],
   },
   { timestamps: true }
 );
