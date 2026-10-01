@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  // One .env at the repository root is shared by the server and the client
   envDir: "../",
   plugins: [react(), tailwindcss()],
   server: {

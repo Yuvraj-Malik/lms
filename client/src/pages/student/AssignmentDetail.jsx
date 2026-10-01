@@ -1,219 +1,209 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Clock, AlertTriangle, FileText } from "lucide-react";
-import { assignmentApi } from "../../api/endpoints.js";
+import { useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import { Download, ExternalLink, Upload } from "lucide-react";
+import { assignmentApi, submissionApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
-import { Card, Button, Input, Textarea, Select, StatusBadge, Spinner, Alert } from "../../components/ui.jsx";
+import useAsync from "../../lib/useAsync.js";
+import { assignmentState, dueLabel, fmtDateTime } from "../../lib/format.js";
+import { Button, ErrorState, Input, Notice, PageHeader, PageLoader, Panel, Segmented, StatusBadge, Textarea, cx, useFeedback } from "../../components/ui.jsx";
 
-const AssignmentDetail = () => {
-  const { id } = useParams();
-  const [assignment, setAssignment] = useState(null);
-  const [mySubmission, setMySubmission] = useState(null);
-  const [submissionType, setSubmissionType] = useState("text");
-  const [textContent, setTextContent] = useState("");
-  const [submissionLink, setSubmissionLink] = useState("");
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+const TYPES = [
+  { value: "text", label: "Text" },
+  { value: "file", label: "File" },
+  { value: "github", label: "GitHub" },
+  { value: "drive", label: "Drive" },
+  { value: "url", label: "Link" },
+];
+const LINK_HINT = {
+  github: ["Repository link", "https://github.com/you/project"],
+  drive: ["Google Drive link", "https://drive.google.com/…  (set sharing to 'Anyone with the link')"],
+  url: ["Project link", "https://your-project.netlify.app"],
+};
 
-  const fetchData = async () => {
-    try {
-      const { data } = await assignmentApi.get(id);
-      setAssignment(data.assignment);
-      setMySubmission(data.mySubmission);
-      if (data.mySubmission) {
-        setSubmissionType(data.mySubmission.submissionType || "text");
-        setTextContent(data.mySubmission.textContent || "");
-        setSubmissionLink(data.mySubmission.submissionLink || "");
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    setSubmitting(true);
-    try {
-      const form = new FormData();
-      if (file) {
-        form.append("submissionType", "file");
-        form.append("file", file);
-      } else {
-        form.append("submissionType", submissionType);
-        if (submissionType === "text") form.append("textContent", textContent);
-        else form.append("submissionLink", submissionLink);
-      }
-      await assignmentApi.submit(id, form);
-      setSuccess("Submission uploaded successfully.");
-      setFile(null);
-      await fetchData();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
+const SubmissionView = ({ s }) => {
+  if (s.submissionType === "text") return <p className="prose-notes rounded-md bg-subtle px-3 py-2.5 text-sm">{s.textContent}</p>;
+  if (s.submissionType === "file")
     return (
-      <div className="flex min-h-64 items-center justify-center">
-        <Spinner size={28} />
-      </div>
+      <a href={submissionApi.fileUrl(s._id)} className="inline-flex items-center gap-2 text-sm font-medium text-accent-fg hover:underline">
+        <Download size={15} /> {s.fileOriginalName || "Download file"}
+      </a>
     );
-  }
-  if (!assignment) return null;
-
-  const overdue = new Date(assignment.deadline) < new Date();
-  const formattedDeadline = new Date(assignment.deadline).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
-    <div className="max-w-2xl space-y-8">
-      <Link
-        to="/dashboard/assignments"
-        className="inline-flex items-center gap-1.5 type-body-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-      >
-        <ArrowLeft size={14} /> Back to Assignments
-      </Link>
-
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="type-h2 text-text-primary">{assignment.title}</h1>
-          <p className="mt-1 type-body text-text-secondary">{assignment.course?.title}</p>
-        </div>
-        <StatusBadge
-          status={overdue ? "overdue" : "upcoming"}
-          label={overdue ? `Overdue · ${formattedDeadline}` : `Due ${formattedDeadline}`}
-        />
-      </div>
-
-      <Card className="p-6">
-        <p className="type-body text-text-secondary">{assignment.description}</p>
-        {assignment.instructions && (
-          <div className="mt-4 pt-4 border-t border-border-subtle">
-            <h3 className="type-h3 text-text-primary">Submission Instructions</h3>
-            <p className="mt-1.5 type-body text-text-secondary">
-              {assignment.instructions}
-            </p>
-          </div>
-        )}
-        <p className="mt-4 type-caption text-text-tertiary">
-          Maximum marks: {assignment.maximumMarks}
-        </p>
-      </Card>
-
-      {mySubmission?.status === "graded" && (
-        <Card className="p-6 border-primary-500/25 bg-bg-surface">
-          <h3 className="type-h3 text-text-primary">Evaluation Result</h3>
-          <p className="mt-2 type-display text-primary-600 dark:text-primary-400">
-            {mySubmission.marks} <span className="type-body-sm text-text-secondary">/ {assignment.maximumMarks} marks</span>
-          </p>
-          {mySubmission.feedback && (
-            <div className="mt-3 rounded-[6px] border border-border-subtle bg-bg-surface-raised p-3.5 type-body-sm text-text-secondary">
-              <span className="font-semibold text-text-primary">Instructor Evaluation: </span>
-              "{mySubmission.feedback}"
-            </div>
-          )}
-        </Card>
-      )}
-
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="type-h3 text-text-primary">
-            {mySubmission ? "Update Submission" : "Submit Assignment"}
-          </h3>
-          {mySubmission && (
-            <StatusBadge
-              status={mySubmission.status === "late" ? "overdue" : mySubmission.status === "graded" ? "completed" : "pending"}
-              label={mySubmission.status}
-            />
-          )}
-        </div>
-
-        {mySubmission && (
-          <p className="mt-2 type-body-sm text-text-tertiary">
-            Last submitted {new Date(mySubmission.submissionDate).toLocaleString()} —{" "}
-            {mySubmission.submissionType === "file" ? mySubmission.fileOriginalName : mySubmission.submissionLink || mySubmission.textContent}
-          </p>
-        )}
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          {error && <Alert tone="danger">{error}</Alert>}
-          {success && <Alert tone="success">{success}</Alert>}
-
-          <Select
-            label="Submission type"
-            value={file ? "file" : submissionType}
-            onChange={(e) => {
-              setFile(null);
-              setSubmissionType(e.target.value);
-            }}
-          >
-            <option value="text">Text Entry</option>
-            <option value="github">GitHub Repository</option>
-            <option value="drive">Drive Document Link</option>
-            <option value="url">Project URL</option>
-            <option value="file">File Upload</option>
-          </Select>
-
-          {submissionType === "text" && !file && (
-            <Textarea
-              label="Submission text"
-              rows={4}
-              value={textContent}
-              onChange={(e) => setTextContent(e.target.value)}
-              placeholder="Paste or write your submission here..."
-            />
-          )}
-
-          {["github", "drive", "url"].includes(submissionType) && !file && (
-            <Input
-              label={`${submissionType === "github" ? "GitHub" : submissionType === "drive" ? "Drive" : "Project"} link`}
-              type="url"
-              value={submissionLink}
-              onChange={(e) => setSubmissionLink(e.target.value)}
-              placeholder="https://…"
-            />
-          )}
-
-          {submissionType === "file" && (
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1.5">
-                Upload File
-              </label>
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-[6px] file:border file:border-border-default file:bg-bg-surface-raised file:text-text-primary file:text-xs file:font-semibold hover:file:bg-bg-surface cursor-pointer"
-              />
-            </div>
-          )}
-
-          <div className="flex justify-end pt-2">
-            <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? "Uploading…" : mySubmission ? "Resubmit Work" : "Submit Assignment"}
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+    <a href={s.submissionLink} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-2 text-sm font-medium text-accent-fg hover:underline">
+      <ExternalLink size={15} className="shrink-0" /> <span className="truncate">{s.submissionLink}</span>
+    </a>
   );
 };
 
-export default AssignmentDetail;
+export default function AssignmentDetail() {
+  const { id } = useParams();
+  const { toast } = useFeedback();
+  const fileInput = useRef(null);
+  const { data, loading, error, reload, setData } = useAsync(async () => (await assignmentApi.get(id)).data, [id]);
+  const [editing, setEditing] = useState(false);
+  const [type, setType] = useState("text");
+  const [text, setText] = useState("");
+  const [link, setLink] = useState("");
+  const [file, setFile] = useState(null);
+  const [formError, setFormError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (loading) return <PageLoader />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+
+  const { assignment, mySubmission } = data;
+  const state = assignmentState(assignment, mySubmission);
+  const overdue = new Date(assignment.deadline) < new Date();
+  const showForm = !mySubmission || (editing && mySubmission.status !== "graded");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setFormError("");
+    const fd = new FormData();
+    fd.append("submissionType", type);
+    if (type === "text") {
+      if (!text.trim()) return setFormError("Write your answer before submitting.");
+      fd.append("textContent", text.trim());
+    } else if (type === "file") {
+      if (!file) return setFormError("Choose a file to upload.");
+      fd.append("file", file);
+    } else {
+      if (!/^https?:\/\/\S+$/i.test(link.trim())) return setFormError("Paste a full link starting with https://");
+      fd.append("submissionLink", link.trim());
+    }
+    setBusy(true);
+    try {
+      const { data: res } = await submissionApi.submit(assignment._id, fd);
+      setData((d) => ({ ...d, mySubmission: res.submission }));
+      setEditing(false);
+      setFile(null);
+      toast(mySubmission ? "Submission updated." : "Submitted. Your instructor has been notified.");
+    } catch (err) {
+      setFormError(getErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = () => {
+    setType(mySubmission.submissionType);
+    setText(mySubmission.textContent || "");
+    setLink(mySubmission.submissionLink || "");
+    setEditing(true);
+  };
+
+  return (
+    <>
+      <PageHeader back={{ to: "/dashboard/assignments", label: "Assignments" }} eyebrow={assignment.course?.title} title={assignment.title} />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+        <div className="space-y-6">
+          <Panel title="Brief">
+            {assignment.description && <p className="prose-notes text-sm">{assignment.description}</p>}
+            {assignment.instructions && (
+              <>
+                <h3 className="mb-1.5 mt-5 text-sm font-semibold">Instructions</h3>
+                <p className="prose-notes text-sm text-fg-muted">{assignment.instructions}</p>
+              </>
+            )}
+            {!assignment.description && !assignment.instructions && <p className="text-sm text-fg-muted">No extra details were provided.</p>}
+          </Panel>
+
+          {mySubmission && !editing && (
+            <Panel
+              title="Your submission"
+              description={`Submitted ${fmtDateTime(mySubmission.submissionDate)}`}
+              actions={
+                mySubmission.status !== "graded" && (
+                  <Button size="sm" onClick={startEdit}>
+                    Replace submission
+                  </Button>
+                )
+              }
+            >
+              <SubmissionView s={mySubmission} />
+              {mySubmission.status === "graded" && (
+                <div className="mt-5 border-t border-line pt-4">
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="text-sm font-semibold">Grade</h3>
+                    <span className="tabular text-lg font-semibold">
+                      {mySubmission.marks}
+                      <span className="text-sm font-normal text-fg-subtle"> / {assignment.maximumMarks}</span>
+                    </span>
+                  </div>
+                  {mySubmission.feedback ? (
+                    <p className="prose-notes mt-2 rounded-md bg-subtle px-3 py-2.5 text-sm">{mySubmission.feedback}</p>
+                  ) : (
+                    <p className="mt-1 text-[13px] text-fg-muted">No written feedback.</p>
+                  )}
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {showForm && (
+            <Panel title={mySubmission ? "Replace your submission" : "Submit your work"}>
+              <form onSubmit={submit} className="space-y-4">
+                {overdue && <Notice tone="warn">The deadline has passed. You can still submit, but it will be marked late.</Notice>}
+                <div>
+                  <div className="mb-1.5 text-[13px] font-medium">Submit as</div>
+                  <Segmented options={TYPES} value={type} onChange={(v) => { setType(v); setFormError(""); }} />
+                </div>
+                {type === "text" && <Textarea label="Your answer" rows={8} value={text} onChange={(e) => setText(e.target.value)} />}
+                {type === "file" && (
+                  <div>
+                    <input ref={fileInput} type="file" className="hidden" accept=".pdf,.zip,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    <button
+                      type="button"
+                      onClick={() => fileInput.current?.click()}
+                      className={cx("flex w-full flex-col items-center rounded-md border border-dashed px-4 py-8 text-center text-sm transition-colors hover:bg-subtle", file ? "border-accent" : "border-line-strong")}
+                    >
+                      <Upload size={18} className="mb-2 text-fg-subtle" />
+                      {file ? <span className="font-medium">{file.name}</span> : <span>Choose a file</span>}
+                      <span className="mt-1 text-xs text-fg-muted">PDF, ZIP, Word, PowerPoint, image or text · up to 15 MB</span>
+                    </button>
+                  </div>
+                )}
+                {LINK_HINT[type] && <Input label={LINK_HINT[type][0]} placeholder={LINK_HINT[type][1]} value={link} onChange={(e) => setLink(e.target.value)} type="url" />}
+                {formError && <Notice tone="danger">{formError}</Notice>}
+                <div className="flex justify-end gap-2">
+                  {editing && (
+                    <Button variant="ghost" onClick={() => setEditing(false)}>
+                      Cancel
+                    </Button>
+                  )}
+                  <Button type="submit" variant="primary" loading={busy}>
+                    {mySubmission ? "Replace submission" : "Submit"}
+                  </Button>
+                </div>
+              </form>
+            </Panel>
+          )}
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-lg border border-line bg-surface p-4">
+            <StatusBadge status={state} />
+            <dl className="mt-4 space-y-2.5 text-[13px]">
+              <div className="flex justify-between gap-4">
+                <dt className="text-fg-muted">Deadline</dt>
+                <dd className="m-0 text-right">{fmtDateTime(assignment.deadline)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-fg-muted">Time left</dt>
+                <dd className={cx("m-0 text-right", overdue && "text-danger")}>{dueLabel(assignment.deadline)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-fg-muted">Maximum marks</dt>
+                <dd className="tabular m-0">{assignment.maximumMarks}</dd>
+              </div>
+            </dl>
+          </div>
+          {mySubmission?.status === "graded" && (
+            <p className="px-1 text-xs text-fg-muted">Graded work is locked. Ask your instructor to reopen it if you need to resubmit.</p>
+          )}
+        </aside>
+      </div>
+    </>
+  );
+}

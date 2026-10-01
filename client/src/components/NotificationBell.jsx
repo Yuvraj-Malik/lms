@@ -1,272 +1,132 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Bell, Info, AlertCircle, Award, BookOpen, CheckCheck, Trash2, X, User as UserIcon, ExternalLink } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Bell } from "lucide-react";
 import { notificationApi } from "../api/endpoints.js";
-import { Button } from "./ui.jsx";
+import { timeAgo } from "../lib/format.js";
+import { cx } from "./ui.jsx";
 
-function timeAgo(dateString) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffSec = Math.floor((now - date) / 1000);
-  if (diffSec < 60) return "Just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `${diffDays}d ago`;
-}
-
-const TYPE_LABELS = {
-  assignment_new: "New Assignment",
-  deadline_approaching: "Deadline Approaching",
-  submission_graded: "Submission Graded",
-  module_completed: "Module Completed",
-  course_completed: "Course Completed",
-  student_registered: "New Student Registered",
-  submission_received: "Submission Received",
-  admin_announcement: "Announcement",
-};
-
-export default function NotificationBell() {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  const [detail, setDetail] = useState(null); // selected notification for detail view
-  const dropdownRef = useRef(null);
+export default function NotificationBell({ placement = "down" }) {
+  const [items, setItems] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
   const navigate = useNavigate();
 
-  const fetchNotifications = async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await notificationApi.list();
-      const list = res.data.notifications || [];
-      setNotifications(list);
-      setUnreadCount(res.data.unreadCount || list.filter((n) => !n.isRead).length);
-    } catch (err) {
-      console.error("Failed to load notifications", err);
+      const { data } = await notificationApi.list();
+      setItems(data.notifications || []);
+      setUnread(data.unreadCount || 0);
+    } catch {
+      /* the bell stays quiet if the request fails */
     }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
+    load();
+    const t = setInterval(load, 45000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => box.current && !box.current.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [open]);
 
-  const handleToggle = () => {
-    if (!isOpen) {
-      fetchNotifications();
+  const openItem = async (n) => {
+    if (!n.isRead) {
+      notificationApi.markRead(n._id).catch(() => {});
+      setItems((list) => list.map((x) => (x._id === n._id ? { ...x, isRead: true } : x)));
+      setUnread((u) => Math.max(0, u - 1));
     }
-    setIsOpen(!isOpen);
-  };
-
-  const handleMarkAllRead = async () => {
-    try {
-      await notificationApi.markAllRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      console.error(err);
+    if (n.link) {
+      setOpen(false);
+      navigate(n.link);
     }
   };
 
-  const handleClearAll = async () => {
-    if (!window.confirm("Clear all notifications? This cannot be undone.")) return;
-    try {
-      await notificationApi.clearAll();
-      setNotifications([]);
-      setUnreadCount(0);
-      setIsOpen(false);
-    } catch (err) {
-      console.error(err);
-    }
+  const markAll = async () => {
+    await notificationApi.markAllRead().catch(() => {});
+    setItems((list) => list.map((x) => ({ ...x, isRead: true })));
+    setUnread(0);
   };
 
-  const handleClickItem = async (notification) => {
-    if (!notification.isRead) {
-      try {
-        await notificationApi.markRead(notification._id);
-        setNotifications((prev) =>
-          prev.map((n) => (n._id === notification._id ? { ...n, isRead: true } : n))
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    setDetail({ ...notification, isRead: true });
-  };
-
-  const handleGoToLink = () => {
-    if (detail?.link) {
-      setDetail(null);
-      setIsOpen(false);
-      navigate(detail.link);
-    }
-  };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case "submission_graded":
-        return <Award size={16} className="text-semantic-warning" />;
-      case "assignment_new":
-        return <BookOpen size={16} className="text-primary-500" />;
-      case "deadline_approaching":
-        return <AlertCircle size={16} className="text-semantic-danger" />;
-      case "module_completed":
-      case "course_completed":
-        return <Award size={16} className="text-semantic-success" />;
-      default:
-        return <Info size={16} className="text-text-tertiary" />;
-    }
+  const clearAll = async () => {
+    await notificationApi.clearAll().catch(() => {});
+    setItems([]);
+    setUnread(0);
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={box}>
       <button
-        onClick={handleToggle}
-        aria-label="View notifications"
-        className="relative rounded-md p-2 text-text-secondary transition-colors hover:bg-bg-surface-raised hover:text-text-primary"
+        type="button"
+        onClick={() => {
+          if (!open) load();
+          setOpen((v) => !v);
+        }}
+        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-subtle hover:text-fg"
       >
-        <Bell size={18} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-semantic-danger px-1 text-[10px] font-bold text-white shadow-sm">
-            {unreadCount > 9 ? "9+" : unreadCount}
+        <Bell size={16} />
+        {unread > 0 && (
+          <span className="tabular absolute right-0.5 top-0.5 min-w-[15px] rounded-full bg-accent px-1 text-center text-[10px] font-semibold leading-[15px] text-white dark:text-[#0c1a15]">
+            {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-md border border-border-subtle bg-bg-surface-raised shadow-raised z-50 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3 bg-bg-surface">
-            <div className="flex items-center gap-2">
-              <h3 className="type-h3 text-text-primary">Notifications</h3>
-              {unreadCount > 0 && (
-                <span className="rounded-sm bg-primary-600/10 px-2 py-0.5 type-caption font-semibold text-primary-400">
-                  {unreadCount} new
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="flex items-center gap-1 type-caption font-medium text-primary-500 hover:text-primary-600 transition-colors"
-                >
-                  <CheckCheck size={13} /> Mark all read
+      {open && (
+        <div
+          className={cx(
+            "animate-pop absolute z-50 w-[min(360px,calc(100vw-1.5rem))] overflow-hidden rounded-lg bg-surface shadow-pop",
+            placement === "up" ? "bottom-full left-0 mb-2" : "right-0 top-full mt-2"
+          )}
+        >
+          <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+            <span className="text-sm font-semibold">Notifications</span>
+            <div className="flex gap-3 text-[13px]">
+              {unread > 0 && (
+                <button onClick={markAll} className="text-fg-muted hover:text-fg">
+                  Mark all read
                 </button>
               )}
-              {notifications.length > 0 && (
-                <button
-                  onClick={handleClearAll}
-                  className="flex items-center gap-1 type-caption text-text-tertiary hover:text-semantic-danger transition-colors"
-                >
-                  <Trash2 size={13} /> Clear all
+              {items.length > 0 && (
+                <button onClick={clearAll} className="text-fg-muted hover:text-fg">
+                  Clear
                 </button>
               )}
             </div>
           </div>
-
-          <div className="max-h-80 overflow-y-auto divide-y divide-border-subtle">
-            {notifications.length === 0 ? (
-              <div className="p-6 text-center type-body text-text-secondary">
-                No active notifications.
-              </div>
+          <div className="max-h-[420px] overflow-y-auto">
+            {items.length === 0 ? (
+              <p className="px-4 py-10 text-center text-[13px] text-fg-muted">You're all caught up.</p>
             ) : (
-              notifications.map((n) => (
-                <div
+              items.map((n) => (
+                <button
                   key={n._id}
-                  onClick={() => handleClickItem(n)}
-                  className={`flex cursor-pointer items-start gap-3 p-3.5 transition-colors hover:bg-bg-surface ${
-                    !n.isRead
-                      ? "bg-primary-600/5"
-                      : "opacity-80 hover:opacity-100"
-                  }`}
+                  onClick={() => openItem(n)}
+                  className="flex w-full gap-3 border-b border-line px-4 py-3 text-left last:border-0 hover:bg-subtle"
                 >
-                  <div className="flex-shrink-0 mt-0.5">{getTypeIcon(n.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className={`type-body-sm font-semibold truncate ${!n.isRead ? "text-text-primary" : "text-text-secondary"}`}>
-                        {n.title}
-                      </p>
-                      <span className="whitespace-nowrap type-caption text-text-tertiary flex-shrink-0">
-                        {timeAgo(n.createdAt)}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 type-body-sm text-text-secondary line-clamp-2">
-                      {n.message}
-                    </p>
-                  </div>
-                  {!n.isRead && (
-                    <span className="mt-1.5 h-2 w-2 rounded-full bg-primary-500 flex-shrink-0" />
-                  )}
-                </div>
+                  <span className={cx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", n.isRead ? "bg-transparent" : "bg-accent")} />
+                  <span className="min-w-0 flex-1">
+                    <span className={cx("block text-[13px]", n.isRead ? "text-fg-muted" : "font-medium text-fg")}>{n.title}</span>
+                    <span className="mt-0.5 block text-[13px] leading-snug text-fg-muted">{n.message}</span>
+                    <span className="mt-1 block text-xs text-fg-subtle">
+                      {n.sentBy?.name ? `${n.sentBy.name} · ` : ""}
+                      {timeAgo(n.createdAt)}
+                    </span>
+                  </span>
+                </button>
               ))
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Notification detail modal */}
-      {detail && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setDetail(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-md border border-border-subtle bg-bg-surface-raised p-6 shadow-raised"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-sm bg-bg-base border border-border-subtle">
-                  {getTypeIcon(detail.type)}
-                </div>
-                <div>
-                  <p className="type-caption text-text-tertiary uppercase">
-                    {TYPE_LABELS[detail.type] || "Notification"}
-                  </p>
-                  <h3 className="type-h3 font-semibold text-text-primary">{detail.title}</h3>
-                </div>
-              </div>
-              <button
-                onClick={() => setDetail(null)}
-                className="rounded-sm p-1 text-text-tertiary hover:text-text-primary transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <p className="mt-4 type-body text-text-primary leading-relaxed">{detail.message}</p>
-
-            <div className="mt-4 space-y-1.5 border-t border-border-subtle pt-3 type-caption text-text-secondary">
-              <p className="flex items-center gap-1.5">
-                <UserIcon size={12} />
-                Sent by {detail.sentBy?.name ? `${detail.sentBy.name}${detail.sentBy.role === "admin" ? " (Admin)" : ""}` : "System"}
-              </p>
-              <p>{new Date(detail.createdAt).toLocaleString()}</p>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setDetail(null)}>
-                Close
-              </Button>
-              {detail.link && (
-                <Button size="sm" variant="primary" onClick={handleGoToLink} className="gap-1.5">
-                  <ExternalLink size={13} /> View
-                </Button>
-              )}
-            </div>
           </div>
         </div>
       )}

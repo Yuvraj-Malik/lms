@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { authApi } from "../api/endpoints.js";
-import { signInWithGooglePopup } from "../config/firebase.js";
+import { getGoogleIdToken } from "../config/firebase.js";
 
 const AuthContext = createContext(null);
 
@@ -10,10 +10,12 @@ export const AuthProvider = ({ children }) => {
 
   const refreshMe = useCallback(async () => {
     try {
-      const { data } = await authApi.me();
+      const { data } = await authApi.session();
       setUser(data.user);
+      return data.user;
     } catch {
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -26,43 +28,35 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });
     setUser(data.user);
-    localStorage.setItem("lastAuthMethod", "email");
-    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 
   const register = async (payload) => {
     const { data } = await authApi.register(payload);
     setUser(data.user);
-    localStorage.setItem("lastAuthMethod", "email");
-    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 
   const loginWithGoogle = async () => {
-    const result = await signInWithGooglePopup();
-    const fbUser = result.user;
-    const idToken = await fbUser.getIdToken();
-    const { data } = await authApi.googleAuth({
-      idToken,
-      email: fbUser.email,
-      name: fbUser.displayName || fbUser.email.split("@")[0],
-      avatar: fbUser.photoURL || "",
-      googleId: fbUser.uid,
-    });
+    const idToken = await getGoogleIdToken();
+    const { data } = await authApi.google(idToken);
     setUser(data.user);
-    localStorage.setItem("lastAuthMethod", "google");
-    localStorage.setItem("lastAuthEmail", data.user.email);
     return data.user;
   };
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      setUser(null);
+    }
   };
 
+  const isAdmin = user?.role === "admin";
+  const isSuper = isAdmin && !!user?.isSuperAdmin;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, refreshMe, setUser }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, isSuper, login, register, loginWithGoogle, logout, refreshMe, setUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -73,3 +67,5 @@ export const useAuth = () => {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };
+
+export const homePathFor = (user) => (user?.role === "admin" ? "/admin" : "/dashboard");

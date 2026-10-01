@@ -1,53 +1,45 @@
 import express from "express";
 import {
-  getPlatformStats,
-  getEnrollmentsByCourse,
-  getAvgProgressByCourse,
-  getSignupsOverTime,
-  getSubmissionStatusBreakdown,
-  getAllStudents,
-  getStudentProgress,
+  getOverview,
+  getStudents,
+  getStudentDetail,
   adminEnrollStudent,
-  adminUnenrollStudent,
-  adminResetSubmission,
-  adminExtendDeadline,
+  adminUnenroll,
+  adminRecalcEnrollment,
+  getSubmissions,
+  reopenSubmission,
   getAllUsers,
+  getInstructors,
+  createUser,
   updateUserRole,
   toggleUserStatus,
   deleteUser,
-  getAllSubmissions,
   sendAdminNotification,
+  studentDirectory,
 } from "../controllers/adminController.js";
-import { protect, requireRole } from "../middleware/auth.js";
+import { protect, requireRole, requireSuperAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 router.use(protect, requireRole("admin"));
 
-// Dashboard & Analytics
-router.get("/stats", getPlatformStats);
-router.get("/analytics/enrollments-by-course", getEnrollmentsByCourse);
-router.get("/analytics/avg-progress-by-course", getAvgProgressByCourse);
-router.get("/analytics/signups-over-time", getSignupsOverTime);
-router.get("/analytics/submission-status", getSubmissionStatusBreakdown);
-
-// Students & Student Progress / Actions
-router.get("/students", getAllStudents);
-router.get("/students/:id/progress", getStudentProgress);
-router.post("/students/enroll", adminEnrollStudent);
-router.post("/students/unenroll", adminUnenrollStudent);
-
-// Submissions & Deadlines
-router.get("/submissions", getAllSubmissions);
-router.delete("/submissions/:id/reset", adminResetSubmission);
-router.post("/assignments/extend-deadline", adminExtendDeadline);
-
-// User Management (Admin Settings)
-router.get("/users", getAllUsers);
-router.put("/users/:id/role", updateUserRole);
-router.put("/users/:id/status", toggleUserStatus);
-router.delete("/users/:id", deleteUser);
-
-// Notifications
+// Scoped to the admin's own courses (super admin: everything)
+router.get("/overview", getOverview);
+router.get("/directory", studentDirectory);
+router.get("/students", getStudents);
+router.get("/students/:id", getStudentDetail);
+router.post("/enrollments", adminEnrollStudent);
+router.delete("/enrollments/:id", adminUnenroll);
+router.post("/enrollments/:id/recalculate", adminRecalcEnrollment);
+router.get("/submissions", getSubmissions);
+router.post("/submissions/:id/reopen", reopenSubmission);
 router.post("/notifications", sendAdminNotification);
+
+// Super admin only
+router.get("/instructors", requireSuperAdmin, getInstructors);
+router.get("/users", requireSuperAdmin, getAllUsers);
+router.post("/users", requireSuperAdmin, createUser);
+router.put("/users/:id/role", requireSuperAdmin, updateUserRole);
+router.put("/users/:id/status", requireSuperAdmin, toggleUserStatus);
+router.delete("/users/:id", requireSuperAdmin, deleteUser);
 
 export default router;

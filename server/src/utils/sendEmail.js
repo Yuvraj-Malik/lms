@@ -60,7 +60,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
     text: text || html?.replace(/<[^>]+>/g, " "),
   });
 
-  console.log(`[Email] Password reset sent to ${to} (Message ID: ${info.messageId})`);
+  console.log(`[Email] Sent "${subject}" to ${to} (Message ID: ${info.messageId})`);
   return { simulated: false, messageId: info.messageId };
 };
 

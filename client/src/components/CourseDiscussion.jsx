@@ -1,363 +1,194 @@
-import React, { useState, useEffect } from "react";
-import { 
-  MessageSquare, 
-  ThumbsUp, 
-  Send, 
-  Plus, 
-  CheckCircle2, 
-  User, 
-  Clock, 
-  ShieldCheck, 
-  Filter,
-  X 
-} from "lucide-react";
+import { useState } from "react";
+import { ArrowUp, MessageSquare, Trash2 } from "lucide-react";
 import { discussionApi } from "../api/endpoints.js";
 import { getErrorMessage } from "../api/client.js";
-import { Card, Button, Input, Textarea, Spinner, Alert, StatusBadge, Badge } from "./ui.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import useAsync from "../lib/useAsync.js";
+import { timeAgo } from "../lib/format.js";
+import { Avatar, Badge, Button, EmptyState, ErrorState, IconButton, Input, Select, Spinner, Textarea, cx, useFeedback } from "./ui.jsx";
 
-export default function CourseDiscussion({ courseId, courseTitle }) {
-  const { user } = useAuth();
-  const [discussions, setDiscussions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newContent, setNewContent] = useState("");
-  const [newCategory, setNewCategory] = useState("General");
-  const [submitting, setSubmitting] = useState(false);
-  const [replyTextMap, setReplyTextMap] = useState({});
-  const [replyingMap, setReplyingMap] = useState({});
-  const [error, setError] = useState("");
+const CATEGORIES = ["General", "Module Question", "Assignment Help", "Bug/Issue"];
 
-  const loadDiscussions = async () => {
+const Thread = ({ d, me, canModerate, onChange, onDelete }) => {
+  const { toast, confirm } = useFeedback();
+  const [open, setOpen] = useState(false);
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+  const voted = d.upvotes.some((u) => String(u) === String(me._id));
+
+  const run = async (fn) => {
     try {
-      setLoading(true);
-      const res = await discussionApi.forCourse(courseId);
-      setDiscussions(res.data?.discussions || []);
+      const { data } = await fn();
+      onChange(data.discussion);
     } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
+      toast(getErrorMessage(err), "danger");
     }
   };
 
-  useEffect(() => {
-    if (courseId) {
-      loadDiscussions();
-    }
-  }, [courseId]);
-
-  const handleCreateThread = async (e) => {
+  const sendReply = async (e) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newContent.trim()) return;
-
-    try {
-      setSubmitting(true);
-      setError("");
-      const res = await discussionApi.create(courseId, {
-        title: newTitle.trim(),
-        content: newContent.trim(),
-        category: newCategory,
-      });
-      setDiscussions((prev) => [res.data.discussion, ...prev]);
-      setNewTitle("");
-      setNewContent("");
-      setShowCreateModal(false);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
+    if (!reply.trim()) return;
+    setBusy(true);
+    await run(() => discussionApi.reply(d._id, reply.trim()));
+    setReply("");
+    setBusy(false);
   };
 
-  const handleUpvote = async (discussionId) => {
-    try {
-      const res = await discussionApi.toggleUpvote(discussionId);
-      setDiscussions((prev) =>
-        prev.map((d) => (d._id === discussionId ? res.data.discussion : d))
-      );
-    } catch (err) {
-      console.error("Upvote failed:", err);
-    }
-  };
-
-  const handleAddReply = async (discussionId) => {
-    const text = replyTextMap[discussionId];
-    if (!text || !text.trim()) return;
-
-    try {
-      setReplyingMap((prev) => ({ ...prev, [discussionId]: true }));
-      const res = await discussionApi.addReply(discussionId, { content: text.trim() });
-      setDiscussions((prev) =>
-        prev.map((d) => (d._id === discussionId ? res.data.discussion : d))
-      );
-      setReplyTextMap((prev) => ({ ...prev, [discussionId]: "" }));
-    } catch (err) {
-      alert(getErrorMessage(err));
-    } finally {
-      setReplyingMap((prev) => ({ ...prev, [discussionId]: false }));
-    }
-  };
-
-  const categories = ["All", "General", "Module Question", "Assignment Help", "Bug/Issue"];
-
-  const filtered = selectedCategory === "All"
-    ? discussions
-    : discussions.filter((d) => d.category === selectedCategory);
+  const canDelete = canModerate || String(d.user?._id) === String(me._id);
 
   return (
-    <div className="space-y-6">
-      {/* Header and Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border-subtle pb-5">
-        <div>
-          <h2 className="type-h2 text-text-primary flex items-center gap-2">
-            <MessageSquare size={20} className="text-primary-500" />
-            Course Discussion & Q&A
-          </h2>
-          <p className="type-body text-text-secondary mt-0.5">
-            Ask technical questions, collaborate with peers, and receive verified instructor guidance
-          </p>
-        </div>
-
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setShowCreateModal(true)}
-          className="gap-1.5 shrink-0"
+    <li className="border-b border-line px-5 py-4 last:border-0">
+      <div className="flex gap-3">
+        <button
+          onClick={() => run(() => discussionApi.upvote(d._id))}
+          aria-label={voted ? "Remove upvote" : "Upvote"}
+          className={cx(
+            "flex h-12 w-10 shrink-0 flex-col items-center justify-center rounded-md border text-xs",
+            voted ? "border-accent bg-accent-soft text-accent-fg" : "border-line text-fg-muted hover:border-line-strong"
+          )}
         >
-          <Plus size={15} /> Start Discussion
-        </Button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`rounded-sm px-3 py-1.5 type-caption font-medium transition-all ${
-              selectedCategory === cat
-                ? "bg-primary-600 text-white shadow-sm"
-                : "border border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary hover:border-border-default"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {error && <Alert tone="danger">{error}</Alert>}
-
-      {/* Create Modal */}
-      {showCreateModal && (
-        <Card className="p-6 border-primary-500/40 shadow-raised relative space-y-4">
-          <div className="flex items-center justify-between border-b border-border-subtle pb-3">
-            <h3 className="type-h3 text-text-primary">
-              Ask a Question in {courseTitle}
-            </h3>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="text-text-tertiary hover:text-text-primary transition-colors"
-            >
-              <X size={18} />
+          <ArrowUp size={14} />
+          <span className="tabular">{d.upvotes.length}</span>
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <button onClick={() => setOpen((v) => !v)} className="text-left text-sm font-medium hover:underline hover:underline-offset-4">
+              {d.title}
+            </button>
+            {canDelete && (
+              <IconButton
+                icon={Trash2}
+                size={14}
+                label="Delete thread"
+                className="-mr-1 -mt-1 h-7 w-7"
+                onClick={async () => {
+                  if (await confirm({ title: "Delete this thread?", description: "All replies will be removed too.", confirmLabel: "Delete", danger: true })) onDelete(d._id);
+                }}
+              />
+            )}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-muted">
+            <span>{d.user?.name || "Deleted user"}</span>
+            <span className="text-fg-subtle">·</span>
+            <span>{timeAgo(d.createdAt)}</span>
+            <Badge>{d.category}</Badge>
+            <button onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1 hover:text-fg">
+              <MessageSquare size={12} /> {d.replies.length}
             </button>
           </div>
-
-          <form onSubmit={handleCreateThread} className="space-y-4">
-            <Input
-              label="Question Title"
-              placeholder="e.g. Clarification on Promises vs Async/Await error handling"
-              required
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-            />
-
-            <div>
-              <label className="block type-caption text-text-secondary mb-1">
-                Category
-              </label>
-              <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full rounded-sm border border-border-default bg-bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary-500 focus:outline-none"
-              >
-                <option value="General">General</option>
-                <option value="Module Question">Module Question</option>
-                <option value="Assignment Help">Assignment Help</option>
-                <option value="Bug/Issue">Bug/Issue</option>
-              </select>
-            </div>
-
-            <Textarea
-              label="Details / Code Snippet"
-              rows={4}
-              required
-              placeholder="Provide context, error messages, or specific lines of code where you need assistance…"
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowCreateModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                {submitting ? "Posting…" : "Post Question"}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
-      {/* Loading state */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner size={28} />
-        </div>
-      ) : filtered.length === 0 ? (
-        <Card className="p-8 text-center space-y-2">
-          <p className="type-h3 text-text-primary">No discussions yet</p>
-          <p className="type-body text-text-secondary max-w-sm mx-auto">
-            {selectedCategory === "All"
-              ? "Have a question about this curriculum? Be the first student to start a thread."
-              : `No questions under "${selectedCategory}".`}
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((thread) => {
-            const hasUpvoted = (thread.upvotes || []).includes(user?._id);
-            const isReplying = replyingMap[thread._id] || false;
-            const currentReplyText = replyTextMap[thread._id] || "";
-
-            return (
-              <Card key={thread._id} className="p-6 space-y-4 shadow-card">
-                {/* Thread Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-sm bg-primary-600/10 px-2 py-0.5 type-caption font-semibold text-primary-400">
-                        {thread.category}
-                      </span>
-                      <span className="type-caption text-text-tertiary">
-                        {new Date(thread.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <h3 className="type-h3 text-text-primary font-semibold">
-                      {thread.title}
-                    </h3>
-                  </div>
-
-                  <button
-                    onClick={() => handleUpvote(thread._id)}
-                    className={`inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 type-caption font-medium transition-colors shrink-0 ${
-                      hasUpvoted
-                        ? "border-primary-500 bg-primary-600/15 text-primary-400 font-semibold"
-                        : "border-border-subtle bg-bg-surface-raised text-text-secondary hover:text-text-primary hover:border-border-default"
-                    }`}
-                  >
-                    <ThumbsUp size={13} />
-                    <span>{thread.upvotes?.length || 0} Upvotes</span>
-                  </button>
-                </div>
-
-                {/* Author Info & Content */}
-                <div className="flex items-center gap-2 type-caption text-text-tertiary">
-                  <span className="font-medium text-text-primary">
-                    {thread.user?.name || "Student"}
-                  </span>
-                  {thread.user?.role === "admin" && (
-                    <span className="rounded-sm bg-semantic-info/10 text-semantic-info px-1.5 py-0.2 text-[10px] font-bold">
-                      Instructor
-                    </span>
-                  )}
-                </div>
-
-                <p className="type-body text-text-primary whitespace-pre-wrap leading-relaxed">
-                  {thread.content}
-                </p>
-
-                {/* Replies Section */}
-                <div className="space-y-3 border-t border-border-subtle pt-4">
-                  <p className="type-caption text-text-secondary font-semibold">
-                    {thread.replies?.length || 0} {thread.replies?.length === 1 ? "Response" : "Responses"}
-                  </p>
-
-                  {thread.replies && thread.replies.length > 0 && (
-                    <div className="space-y-2.5 pl-2 sm:pl-4 border-l-2 border-border-subtle">
-                      {thread.replies.map((reply, rIdx) => (
-                        <div
-                          key={rIdx}
-                          className={`rounded-[8px] p-3 space-y-1.5 ${
-                            reply.isInstructorAnswer
-                              ? "bg-primary-600/10 border border-primary-500/30"
-                              : "bg-bg-surface-raised/50 border border-border-subtle"
-                          }`}
+          {open && (
+            <div className="mt-3">
+              <p className="prose-notes text-sm">{d.content}</p>
+              <ul className="mt-4 space-y-3 border-l-2 border-line pl-4">
+                {d.replies.map((r) => (
+                  <li key={r._id} className="group">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Avatar user={r.user} size={20} />
+                      <span className="font-medium text-fg">{r.user?.name || "Deleted user"}</span>
+                      {r.isInstructorAnswer && <Badge tone="accent">Instructor</Badge>}
+                      <span className="text-fg-subtle">{timeAgo(r.createdAt)}</span>
+                      {(canModerate || String(r.user?._id) === String(me._id)) && (
+                        <button
+                          onClick={() => run(() => discussionApi.removeReply(d._id, r._id))}
+                          className="ml-auto text-fg-subtle opacity-0 hover:text-danger group-hover:opacity-100"
                         >
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-text-primary">
-                                {reply.user?.name || "Participant"}
-                              </span>
-                              {reply.isInstructorAnswer && (
-                                <span className="flex items-center gap-1 rounded-sm bg-primary-600 px-1.5 py-0.2 text-[10px] font-bold text-white uppercase">
-                                  <ShieldCheck size={11} /> Faculty Response
-                                </span>
-                              )}
-                            </div>
-                            <span className="type-caption text-text-tertiary">
-                              {new Date(reply.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="type-body-sm text-text-primary whitespace-pre-wrap">
-                            {reply.content}
-                          </p>
-                        </div>
-                      ))}
+                          Delete
+                        </button>
+                      )}
                     </div>
-                  )}
-
-                  {/* Reply Input Box */}
-                  <div className="flex gap-2 pt-1">
-                    <input
-                      type="text"
-                      placeholder="Write a constructive reply or answer…"
-                      value={currentReplyText}
-                      onChange={(e) =>
-                        setReplyTextMap((prev) => ({
-                          ...prev,
-                          [thread._id]: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleAddReply(thread._id);
-                        }
-                      }}
-                      className="flex-1 rounded-sm border border-border-default bg-bg-surface px-3 py-2 text-sm text-text-primary focus:border-primary-500 focus:outline-none"
-                    />
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={isReplying || !currentReplyText.trim()}
-                      onClick={() => handleAddReply(thread._id)}
-                      className="gap-1 shrink-0"
-                    >
-                      <Send size={13} /> Reply
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+                    <p className="prose-notes mt-1 text-sm">{r.content}</p>
+                  </li>
+                ))}
+              </ul>
+              <form onSubmit={sendReply} className="mt-4 flex gap-2">
+                <Input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write a reply" className="flex-1" aria-label="Reply" />
+                <Button type="submit" loading={busy} disabled={!reply.trim()}>
+                  Reply
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
+      </div>
+    </li>
+  );
+};
+
+export default function CourseDiscussion({ courseId }) {
+  const { user } = useAuth();
+  const { toast } = useFeedback();
+  const { data, loading, error, reload, setData } = useAsync(async () => (await discussionApi.forCourse(courseId)).data, [courseId]);
+  const [composing, setComposing] = useState(false);
+  const [form, setForm] = useState({ title: "", content: "", category: "General" });
+  const [busy, setBusy] = useState(false);
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+
+  const replace = (thread) => setData((d) => ({ ...d, discussions: d.discussions.map((x) => (x._id === thread._id ? thread : x)) }));
+  const remove = async (id) => {
+    try {
+      await discussionApi.remove(id);
+      setData((d) => ({ ...d, discussions: d.discussions.filter((x) => x._id !== id) }));
+    } catch (err) {
+      toast(getErrorMessage(err), "danger");
+    }
+  };
+
+  const post = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data: res } = await discussionApi.create(courseId, form);
+      setData((d) => ({ ...d, discussions: [res.discussion, ...d.discussions] }));
+      setForm({ title: "", content: "", category: "General" });
+      setComposing(false);
+    } catch (err) {
+      toast(getErrorMessage(err), "danger");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-line bg-surface">
+      <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3">
+        <p className="text-[13px] text-fg-muted">Ask questions and help classmates. Instructor replies are marked.</p>
+        {!composing && (
+          <Button size="sm" variant="primary" onClick={() => setComposing(true)}>
+            New thread
+          </Button>
+        )}
+      </div>
+      {composing && (
+        <form onSubmit={post} className="space-y-3 border-b border-line bg-subtle/50 px-5 py-4">
+          <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+            <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <Select label="Topic" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </Select>
+          </div>
+          <Textarea label="Details" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} required rows={4} />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setComposing(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={busy} disabled={!form.title.trim() || !form.content.trim()}>
+              Post
+            </Button>
+          </div>
+        </form>
+      )}
+      {data.discussions.length === 0 ? (
+        <EmptyState icon={MessageSquare} title="No threads yet" description="Start the conversation with a question about the course." />
+      ) : (
+        <ul>
+          {data.discussions.map((d) => (
+            <Thread key={d._id} d={d} me={user} canModerate={data.canModerate} onChange={replace} onDelete={remove} />
+          ))}
+        </ul>
       )}
     </div>
   );

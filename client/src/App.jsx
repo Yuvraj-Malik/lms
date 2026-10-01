@@ -1,164 +1,165 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { 
-  BookOpen, 
-  LayoutDashboard, 
-  ClipboardList, 
-  TrendingUp, 
-  BookOpenCheck, 
-  Users, 
-  Settings, 
-  FileCheck2, 
-  User 
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  BookOpen,
+  ClipboardList,
+  Compass,
+  FileCheck2,
+  Home,
+  LayoutDashboard,
+  Megaphone,
+  Settings,
+  ShieldCheck,
+  TrendingUp,
+  User,
+  Users as UsersIcon,
+  Library,
 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
-import Navbar from "./components/Navbar.jsx";
-import Footer from "./components/Footer.jsx";
+import { FeedbackProvider } from "./components/ui.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import DashboardShell from "./components/DashboardShell.jsx";
+import AppShell from "./components/AppShell.jsx";
+import PublicLayout from "./components/PublicLayout.jsx";
 
+import Home_ from "./pages/public/Home.jsx";
+import PublicCatalog from "./pages/public/PublicCatalog.jsx";
+import PublicCourse from "./pages/public/PublicCourse.jsx";
 import Login from "./pages/public/Login.jsx";
 import Register from "./pages/public/Register.jsx";
 import ForgotPassword from "./pages/public/ForgotPassword.jsx";
 import ResetPassword from "./pages/public/ResetPassword.jsx";
-import Profile from "./pages/public/Profile.jsx";
 import VerifyCertificate from "./pages/public/VerifyCertificate.jsx";
 import NotFound from "./pages/public/NotFound.jsx";
 
-import StudentDashboard from "./pages/student/StudentDashboard.jsx";
+import StudentHome from "./pages/student/StudentHome.jsx";
 import MyCourses from "./pages/student/MyCourses.jsx";
-import CourseDetails from "./pages/student/CourseDetails.jsx";
-import CourseModules from "./pages/student/CourseModules.jsx";
-import StudentAssignments from "./pages/student/StudentAssignments.jsx";
+import Catalog from "./pages/student/Catalog.jsx";
+import StudentCourse from "./pages/student/StudentCourse.jsx";
+import Learn from "./pages/student/Learn.jsx";
+import Assignments from "./pages/student/Assignments.jsx";
 import AssignmentDetail from "./pages/student/AssignmentDetail.jsx";
 import Progress from "./pages/student/Progress.jsx";
-import StudentSettings from "./pages/student/StudentSettings.jsx";
+import Profile from "./pages/student/Profile.jsx";
+import CertificatePage from "./pages/student/CertificatePage.jsx";
+import AccountSettings from "./pages/shared/AccountSettings.jsx";
 
-import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
-import ManageCourses from "./pages/admin/ManageCourses.jsx";
-import CourseEnrollments from "./pages/admin/CourseEnrollments.jsx";
-import AddEditCourse from "./pages/admin/AddEditCourse.jsx";
-import ManageModules from "./pages/admin/ManageModules.jsx";
-import ManageAssignments from "./pages/admin/ManageAssignments.jsx";
-import ViewSubmissions from "./pages/admin/ViewSubmissions.jsx";
-import ManageStudents from "./pages/admin/ManageStudents.jsx";
-import StudentProgress from "./pages/admin/StudentProgress.jsx";
+import AdminOverview from "./pages/admin/AdminOverview.jsx";
+import AdminCourses from "./pages/admin/AdminCourses.jsx";
+import CourseEditor, { NewCourse } from "./pages/admin/CourseEditor.jsx";
 import AdminSubmissions from "./pages/admin/AdminSubmissions.jsx";
-import AdminSettings from "./pages/admin/AdminSettings.jsx";
+import AdminStudents from "./pages/admin/AdminStudents.jsx";
+import StudentDetail from "./pages/admin/StudentDetail.jsx";
+import Announcements from "./pages/admin/Announcements.jsx";
+import Users from "./pages/admin/Users.jsx";
 
-const studentLinks = [
-  { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/dashboard/my-courses", label: "Courses", icon: BookOpen },
-  { to: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
-  { to: "/dashboard/progress", label: "Progress", icon: TrendingUp },
-  { to: "/dashboard/profile", label: "Profile", icon: User },
-  { to: "/dashboard/settings", label: "Settings", icon: Settings },
+const studentNav = [
+  {
+    items: [
+      { to: "/dashboard", label: "Home", icon: Home, end: true },
+      { to: "/dashboard/courses", label: "My courses", icon: BookOpen },
+      { to: "/dashboard/assignments", label: "Assignments", icon: ClipboardList },
+      { to: "/dashboard/progress", label: "Progress", icon: TrendingUp },
+    ],
+  },
+  {
+    title: "Explore",
+    items: [{ to: "/dashboard/catalog", label: "Course catalog", icon: Compass }],
+  },
+  {
+    title: "You",
+    items: [
+      { to: "/dashboard/profile", label: "Profile & certificates", icon: User },
+      { to: "/dashboard/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
-const adminLinks = [
-  { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/admin/courses", label: "Courses", icon: BookOpenCheck },
-  { to: "/admin/students", label: "Students", icon: Users },
-  { to: "/admin/submissions", label: "Submissions", icon: FileCheck2 },
-  { to: "/admin/settings", label: "Users & Settings", icon: Settings },
+const adminNav = (isSuper) => [
+  {
+    items: [
+      { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
+      { to: "/admin/courses", label: "Courses", icon: Library },
+      { to: "/admin/submissions", label: "Submissions", icon: FileCheck2 },
+      { to: "/admin/students", label: "Students", icon: UsersIcon },
+      { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
+    ],
+  },
+  ...(isSuper ? [{ title: "Super admin", items: [{ to: "/admin/users", label: "Users & roles", icon: ShieldCheck }] }] : []),
+  { title: "You", items: [{ to: "/admin/settings", label: "Settings", icon: Settings }] },
 ];
 
-const Layout = ({ children }) => {
-  const location = useLocation();
-  const isLoginPage = location.pathname === "/login";
-  const isRegisterPage = location.pathname === "/register";
-
-  if (isLoginPage) {
-    return <main className="h-screen w-full overflow-hidden">{children}</main>;
-  }
-
-  if (isRegisterPage) {
-    return <main className="min-h-screen w-full">{children}</main>;
-  }
-
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1">{children}</main>
-      <Footer />
-    </div>
-  );
+// Old URLs that may still be in notifications from before the redesign
+const LegacyCourseRedirect = () => {
+  const { courseId } = useParams();
+  return <Navigate to={`/dashboard/courses/${courseId}/learn`} replace />;
 };
 
-const RootRedirect = () => {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-pine border-t-transparent" />
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+const AdminShell = () => {
+  const { isSuper } = useAuth();
+  return <AppShell sections={adminNav(isSuper)} />;
 };
 
-function App() {
+export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Layout>
+      <FeedbackProvider>
+        <AuthProvider>
+          <BrowserRouter>
             <Routes>
-              {/* Public */}
-              <Route path="/" element={<RootRedirect />} />
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<Home_ />} />
+                <Route path="/courses" element={<PublicCatalog />} />
+                <Route path="/courses/:courseId" element={<PublicCourse />} />
+                <Route path="/verify" element={<VerifyCertificate />} />
+                <Route path="/verify/:credentialId" element={<VerifyCertificate />} />
+              </Route>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
-              <Route path="/verify/:credentialId" element={<VerifyCertificate />} />
 
-              {/* Any authenticated user */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/profile" element={<Profile />} />
-              </Route>
-
-              {/* Student */}
               <Route element={<ProtectedRoute role="student" />}>
-                <Route element={<DashboardShell title="Student" links={studentLinks} />}>
-                  <Route path="/dashboard" element={<StudentDashboard />} />
-                  <Route path="/dashboard/my-courses" element={<MyCourses />} />
-                  <Route path="/dashboard/my-courses/:courseId/details" element={<CourseDetails />} />
-                  <Route path="/dashboard/my-courses/:courseId" element={<CourseModules />} />
-                  <Route path="/dashboard/assignments" element={<StudentAssignments />} />
+                <Route element={<AppShell sections={studentNav} />}>
+                  <Route path="/dashboard" element={<StudentHome />} />
+                  <Route path="/dashboard/courses" element={<MyCourses />} />
+                  <Route path="/dashboard/catalog" element={<Catalog />} />
+                  <Route path="/dashboard/courses/:courseId" element={<StudentCourse />} />
+                  <Route path="/dashboard/courses/:courseId/learn" element={<Learn />} />
+                  <Route path="/dashboard/assignments" element={<Assignments />} />
                   <Route path="/dashboard/assignments/:id" element={<AssignmentDetail />} />
                   <Route path="/dashboard/progress" element={<Progress />} />
                   <Route path="/dashboard/profile" element={<Profile />} />
-                  <Route path="/dashboard/settings" element={<StudentSettings />} />
+                  <Route path="/dashboard/certificates/:enrollmentId" element={<CertificatePage />} />
+                  <Route path="/dashboard/settings" element={<AccountSettings />} />
+                  <Route path="/dashboard/my-courses" element={<Navigate to="/dashboard/courses" replace />} />
+                  <Route path="/dashboard/my-courses/:courseId/*" element={<LegacyCourseRedirect />} />
                 </Route>
               </Route>
 
-              {/* Admin */}
               <Route element={<ProtectedRoute role="admin" />}>
-                <Route element={<DashboardShell title="Admin" links={adminLinks} />}>
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/courses" element={<ManageCourses />} />
-                  <Route path="/admin/courses/new" element={<AddEditCourse />} />
-                  <Route path="/admin/courses/:id/edit" element={<AddEditCourse />} />
-                  <Route path="/admin/courses/:courseId/enrollments" element={<CourseEnrollments />} />
-                  <Route path="/admin/courses/:courseId/modules" element={<ManageModules />} />
-                  <Route path="/admin/courses/:courseId/assignments" element={<ManageAssignments />} />
-                  <Route path="/admin/assignments/:assignmentId/submissions" element={<ViewSubmissions />} />
+                <Route element={<AdminShell />}>
+                  <Route path="/admin" element={<AdminOverview />} />
+                  <Route path="/admin/courses" element={<AdminCourses />} />
+                  <Route path="/admin/courses/new" element={<NewCourse />} />
+                  <Route path="/admin/courses/:courseId" element={<CourseEditor />} />
                   <Route path="/admin/submissions" element={<AdminSubmissions />} />
-                  <Route path="/admin/students" element={<ManageStudents />} />
-                  <Route path="/admin/students/:id" element={<StudentProgress />} />
-                  <Route path="/admin/settings" element={<AdminSettings />} />
+                  <Route path="/admin/students" element={<AdminStudents />} />
+                  <Route path="/admin/students/:id" element={<StudentDetail />} />
+                  <Route path="/admin/announcements" element={<Announcements />} />
+                  <Route path="/admin/settings" element={<AccountSettings />} />
+                  <Route element={<ProtectedRoute role="admin" superOnly />}>
+                    <Route path="/admin/users" element={<Users />} />
+                  </Route>
                 </Route>
               </Route>
 
+              <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </Layout>
-        </BrowserRouter>
-      </AuthProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </FeedbackProvider>
     </ThemeProvider>
   );
 }
-
-export default App;

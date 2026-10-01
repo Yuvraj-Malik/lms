@@ -14,8 +14,15 @@ import Assignment from "./models/Assignment.js";
 import Enrollment from "./models/Enrollment.js";
 import Submission from "./models/Submission.js";
 import Discussion from "./models/Discussion.js";
+import QuizAttempt from "./models/QuizAttempt.js";
+import Notification from "./models/Notification.js";
 
 const run = async () => {
+  // This script wipes every collection. Refuse to touch a production database by accident.
+  if (process.env.NODE_ENV === "production" && !process.argv.includes("--force")) {
+    console.error("Refusing to seed while NODE_ENV=production. Re-run with --force if you really mean it.");
+    process.exit(1);
+  }
   await connectDB();
   console.log("Clearing existing data...");
   await Promise.all([
@@ -26,17 +33,29 @@ const run = async () => {
     Enrollment.deleteMany({}),
     Submission.deleteMany({}),
     Discussion.deleteMany({}),
+    QuizAttempt.deleteMany({}),
+    Notification.deleteMany({}),
   ]);
 
   console.log("Creating users...");
   const admin = await User.create({
-    name: "Dr. Neha Kapoor (Admin)",
+    name: "Dr. Neha Kapoor",
     email: "admin@lms.com",
     password: "admin123",
     role: "admin",
     isSuperAdmin: true,
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
     bio: "Head of Computer Science & Full Stack Engineering. Over 12 years of industry and academic experience.",
+  });
+
+  // A regular instructor: can only manage the courses they own
+  const instructor = await User.create({
+    name: "Prof. Arjun Mehta",
+    email: "instructor@lms.com",
+    password: "instructor123",
+    role: "admin",
+    isSuperAdmin: false,
+    bio: "Data science lead. Teaches the Python and Java tracks.",
   });
 
   const student1 = await User.create({
@@ -109,7 +128,7 @@ const run = async () => {
     duration: "8 weeks",
     difficulty: "Beginner",
     image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
-    createdBy: admin._id,
+    createdBy: instructor._id,
   });
 
   // Course 3: Java Enterprise Application Development
@@ -118,11 +137,11 @@ const run = async () => {
     description:
       "Build resilient enterprise web architectures using Java 21, Spring Boot REST APIs, Hibernate/JPA, MySQL database persistence, and modern React clients.",
     category: "Software Engineering",
-    instructor: "Rajesh Sharma",
+    instructor: "Prof. Arjun Mehta",
     duration: "10 weeks",
     difficulty: "Intermediate",
     image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80",
-    createdBy: admin._id,
+    createdBy: instructor._id,
   });
 
   // Course 4: Cloud Computing & DevOps Essentials
@@ -1011,6 +1030,7 @@ const run = async () => {
     progress: 100,
     completedModules: c5Modules.map((m) => m._id),
     status: "completed",
+    completedAt: daysAgo(3),
     enrollmentDate: daysAgo(25),
   });
 
@@ -1183,10 +1203,28 @@ const run = async () => {
     ],
   });
 
+  // Completed modules with a quiz need a passing attempt (that's how students complete them in the app)
+  const allEnrollments = await Enrollment.find({});
+  for (const e of allEnrollments) {
+    const mods = await Module.find({ _id: { $in: e.completedModules } });
+    for (const m of mods.filter((x) => x.quiz.length)) {
+      await QuizAttempt.create({
+        student: e.student,
+        module: m._id,
+        course: e.course,
+        answers: m.quiz.map((q) => q.answer),
+        score: m.quiz.length,
+        total: m.quiz.length,
+        passed: true,
+      });
+    }
+  }
+
   console.log("\n========================================================");
   console.log(" Rich curriculum, quizzes, & assignments seeded!");
   console.log("========================================================");
-  console.log("Admin Account   : admin@lms.com / admin123");
+  console.log("Super admin     : admin@lms.com / admin123");
+  console.log("Instructor      : instructor@lms.com / instructor123 (owns 2 courses)");
   console.log("Student Account : student@lms.com / student123 (Aditi Sharma)");
   console.log("Your Account    : malikyuvraj2701@gmail.com / student123 (Yuvraj Malik)");
   console.log("Courses Count   : 6 fully structured courses");

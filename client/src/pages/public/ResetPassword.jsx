@@ -1,88 +1,55 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { authApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
-import { Input, Button, Alert, Card } from "../../components/ui.jsx";
-import { RidgelineMark } from "../../components/BrandLogo.jsx";
+import AuthLayout from "../../components/AuthLayout.jsx";
+import { Button, Input, Notice, useFeedback } from "../../components/ui.jsx";
 
-const ResetPassword = () => {
+export default function ResetPassword() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const { toast } = useFeedback();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const mismatch = confirm && password !== confirm;
+
+  const submit = async (e) => {
     e.preventDefault();
+    if (password.length < 6) return setError("Use at least 6 characters.");
+    if (password !== confirm) return setError("Passwords don't match.");
     setError("");
-    if (password !== confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
+    setBusy(true);
     try {
       await authApi.resetPassword(token, password);
-      setDone(true);
-      setTimeout(() => navigate("/login"), 2000);
+      toast("Password updated. Sign in with your new password.");
+      navigate("/login", { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[75vh] max-w-md items-center px-4 py-10 sm:px-6">
-      <Card className="w-full p-6">
-        <div className="mb-4">
-          <RidgelineMark size={28} />
-        </div>
-        <h1 className="type-h2 text-text-primary">Set a new password</h1>
-        <p className="mt-1 type-body text-text-secondary">
-          Enter and verify your new credential password.
-        </p>
-
-        {done ? (
-          <Alert tone="success" className="mt-6">
-            Password updated successfully. Redirecting to login…
-          </Alert>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {error && <Alert tone="danger">{error}</Alert>}
-            <Input
-              label="New password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-            <Input
-              label="Confirm new password"
-              type="password"
-              required
-              minLength={6}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-            />
-            <Button type="submit" variant="primary" disabled={loading} className="w-full">
-              {loading ? "Updating…" : "Update password"}
-            </Button>
-          </form>
-        )}
-
-        <p className="mt-6 text-center type-body text-text-secondary">
-          <Link to="/login" className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">
-            Return to sign in
-          </Link>
-        </p>
-      </Card>
-    </div>
+    <AuthLayout
+      title="Choose a new password"
+      footer={
+        <Link to="/forgot-password" className="text-fg-muted hover:text-fg">
+          Need a new link?
+        </Link>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {error && <Notice tone="danger">{error}</Notice>}
+        <Input label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint="At least 6 characters." autoFocus />
+        <Input label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} error={mismatch ? "Passwords don't match." : ""} />
+        <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy}>
+          Update password
+        </Button>
+      </form>
+    </AuthLayout>
   );
-};
-
-export default ResetPassword;
+}

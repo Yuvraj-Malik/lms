@@ -2,81 +2,52 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { authApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
-import { Input, Button, Alert, Card } from "../../components/ui.jsx";
-import { RidgelineMark } from "../../components/BrandLogo.jsx";
+import AuthLayout from "../../components/AuthLayout.jsx";
+import { Button, Input, Notice } from "../../components/ui.jsx";
 
-const ForgotPassword = () => {
+export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setBusy(true);
     try {
-      await authApi.forgotPassword(email);
+      await authApi.forgotPassword(email.trim());
       setSent(true);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-[75vh] max-w-md items-center px-4 py-10 sm:px-6">
-      <Card className="w-full p-6">
-        <div className="mb-4">
-          <RidgelineMark size={28} />
-        </div>
-        <h1 className="type-h2 text-text-primary">Reset your password</h1>
-        <p className="mt-1 type-body text-text-secondary">
-          Enter your institutional email to receive recovery instructions.
-        </p>
-
-        {sent ? (
-          <div className="mt-6 space-y-4">
-            <Alert tone="success">
-              A password reset link has been dispatched to <strong>{email}</strong> if a corresponding record exists. Please check your institutional inbox.
-            </Alert>
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => {
-                setSent(false);
-                setEmail("");
-              }}
-            >
-              Send to a different email
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {error && <Alert tone="danger">{error}</Alert>}
-            <Input
-              label="Email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@institution.edu"
-            />
-            <Button type="submit" variant="primary" disabled={loading} className="w-full">
-              {loading ? "Sending link…" : "Send recovery link"}
-            </Button>
-          </form>
-        )}
-
-        <p className="mt-6 text-center type-body text-text-secondary">
-          <Link to="/login" className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">
-            Return to sign in
-          </Link>
-        </p>
-      </Card>
-    </div>
+    <AuthLayout
+      title="Reset your password"
+      subtitle="We'll email you a link to choose a new password."
+      footer={
+        <Link to="/login" className="text-fg-muted hover:text-fg">
+          Back to sign in
+        </Link>
+      }
+    >
+      {sent ? (
+        <Notice tone="ok" title="Check your inbox">
+          If an account exists for {email}, a reset link is on its way. It expires in 30 minutes.
+        </Notice>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          {error && <Notice tone="danger">{error}</Notice>}
+          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy} disabled={!email}>
+            Send reset link
+          </Button>
+        </form>
+      )}
+    </AuthLayout>
   );
-};
-
-export default ForgotPassword;
+}

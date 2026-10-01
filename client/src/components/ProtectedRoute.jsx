@@ -1,20 +1,22 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth, homePathFor } from "../context/AuthContext.jsx";
+import { Spinner } from "./ui.jsx";
 
-const ProtectedRoute = ({ role }) => {
+const ProtectedRoute = ({ role, superOnly = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-pine border-t-transparent" />
+        <Spinner />
       </div>
     );
   }
 
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (role && user.role !== role) return <Navigate to="/" replace />;
+  if (role && user.role !== role) return <Navigate to={homePathFor(user)} replace />;
+  if (superOnly && !user.isSuperAdmin) return <Navigate to="/admin" replace />;
 
   return <Outlet />;
 };

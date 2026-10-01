@@ -1,64 +1,80 @@
 import crypto from "crypto";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { signToken, sendTokenCookie } from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import { createNotification } from "./notificationController.js";
 
+// Shape of the user object the client receives after any auth action
+export const publicUser = (user, hasPassword) => ({
+  _id: user._id,
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  isSuperAdmin: !!user.isSuperAdmin,
+  avatar: user.avatar,
+  bio: user.bio,
+  department: user.department,
+  authProvider: user.authProvider,
+  notificationPreferences: user.notificationPreferences,
+  createdAt: user.createdAt,
+  lastLogin: user.lastLogin,
+  hasPassword: hasPassword ?? !!user.password,
+});
+
+const notifyAdminsOfSignup = async (user, via) => {
+  const admins = await User.find({ role: "admin", isSuperAdmin: true }).select("_id");
+  await Promise.all(
+    admins.map((admin) =>
+      createNotification({
+        user: admin._id,
+        title: "New student registered",
+        message: `${user.name} (${user.email}) signed up${via ? ` with ${via}` : ""}.`,
+        link: "/admin/students",
+        type: "student_registered",
+      })
+    )
+  );
+};
+
 // @route POST /api/auth/register
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, adminCode } = req.body;
 
-  if (!name || !email || !password) {
+  if (!name?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ message: "Name, email and password are required." });
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ message: "Please enter a valid email address." });
   }
   if (password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters." });
   }
 
-  const existing = await User.findOne({ email: email.toLowerCase() });
+  const existing = await User.findOne({ email: email.toLowerCase().trim() });
   if (existing) {
     return res.status(409).json({ message: "An account with this email already exists." });
   }
 
-  // Only allow "admin" role via explicit signup code, otherwise force student.
-  const finalRole =
-    role === "admin" && req.body.adminCode && req.body.adminCode === (process.env.ADMIN_SIGNUP_CODE || "LMS-ADMIN-2026")
-      ? "admin"
-      : "student";
-
-  const user = await User.create({ name, email, password, role: finalRole });
-
-  // If new student, notify all admins
-  if (finalRole === "student") {
-    const admins = await User.find({ role: "admin" });
-    for (const admin of admins) {
-      createNotification({
-        user: admin._id,
-        title: "New Student Registered",
-        message: `${user.name} (${user.email}) created an account.`,
-        link: "/admin/students",
-        type: "student_registered",
-      });
+  // Instructor (admin) sign-up is only possible when ADMIN_SIGNUP_CODE is configured
+  // on the server and the caller supplies it. There is no built-in fallback code.
+  const signupCode = process.env.ADMIN_SIGNUP_CODE;
+  let finalRole = "student";
+  if (role === "admin") {
+    if (!signupCode || adminCode !== signupCode) {
+      return res.status(403).json({ message: "Invalid instructor access code." });
     }
+    finalRole = "admin";
   }
+
+  const user = await User.create({ name: name.trim(), email, password, role: finalRole });
+  if (finalRole === "student") notifyAdminsOfSignup(user);
 
   const token = signToken(user._id);
   sendTokenCookie(res, token);
-
-  res.status(201).json({
-    token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      authProvider: user.authProvider,
-      isSuperAdmin: user.isSuperAdmin,
-      hasPassword: true,
-    },
-  });
+  res.status(201).json({ token, user: publicUser(user, true) });
 });
 
 // @route POST /api/auth/login
@@ -68,14 +84,10 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Email and password are required." });
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
-  if (!user || !user.password) {
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
+  if (!user || !user.password || !(await user.comparePassword(password))) {
     return res.status(401).json({ message: "Invalid email or password." });
   }
-  if (!(await user.comparePassword(password))) {
-    return res.status(401).json({ message: "Invalid email or password." });
-  }
-
   if (user.isActive === false) {
     return res.status(403).json({ message: "Your account has been deactivated. Please contact an administrator." });
   }
@@ -85,21 +97,7 @@ export const login = asyncHandler(async (req, res) => {
 
   const token = signToken(user._id);
   sendTokenCookie(res, token);
-
-  res.json({
-    token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      department: user.department,
-      authProvider: user.authProvider,
-      isSuperAdmin: user.isSuperAdmin,
-      hasPassword: true,
-    },
-  });
+  res.json({ token, user: publicUser(user, true) });
 });
 
 // @route POST /api/auth/logout
@@ -113,75 +111,55 @@ export const logout = asyncHandler(async (req, res) => {
   res.json({ message: "Logged out successfully." });
 });
 
+// @route GET /api/auth/session — like /me, but returns { user: null } instead of 401 when signed out,
+// so the app can check "am I logged in?" on every page load without an error in the console
+export const getSession = asyncHandler(async (req, res) => {
+  if (!req.user) return res.json({ user: null });
+  const fresh = await User.findById(req.user._id).select("+password");
+  res.json({ user: publicUser(fresh, !!fresh.password) });
+});
+
 // @route GET /api/auth/me
 export const getMe = asyncHandler(async (req, res) => {
   const fresh = await User.findById(req.user._id).select("+password");
-  const hasPassword = !!fresh.password;
-  const userObj = fresh.toObject();
-  delete userObj.password;
-  res.json({ user: { ...userObj, hasPassword } });
+  res.json({ user: publicUser(fresh, !!fresh.password) });
 });
+
+const clientUrl = () => (process.env.CLIENT_URL || "http://localhost:5174").replace(/\/$/, "");
 
 // @route POST /api/auth/forgot-password
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const user = await User.findOne({ email: email?.toLowerCase() }).select("+password");
-
-  // Always respond the same way, whether or not the user exists (avoid email enumeration)
   const genericResponse = { message: "If an account exists for that email, a reset link has been sent." };
+  if (!email) return res.status(400).json({ message: "Email is required." });
 
-  if (!user) return res.json(genericResponse);
-
-  // Google-signed-in accounts with no password can't reset one that never existed
-  if (!user.password) {
-    return res.status(400).json({
-      message:
-        "No existing password found for this account. This account was created with Google Sign-In — sign in with Google, then create a password from your account settings.",
-    });
-  }
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
+  // Same response whether or not the account exists, to avoid leaking which emails are registered
+  if (!user || !user.password) return res.json(genericResponse);
 
   const rawToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const clientOrigin = req.headers.origin || process.env.CLIENT_URL || "http://localhost:5173";
-  const resetUrl = `${clientOrigin}/reset-password/${rawToken}`;
+  // Always build the link from the server's configured CLIENT_URL, never from request headers
+  const resetUrl = `${clientUrl()}/reset-password/${rawToken}`;
 
   const emailHtml = `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password</title>
-  </head>
-  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px;">
-    <div style="max-width: 540px; margin: 0 auto; background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden;">
-      <div style="background: linear-gradient(135deg, #059669, #0d9488); padding: 32px 24px; text-align: center;">
-        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.02em;">TaskPulse LMS</h1>
-      </div>
-      <div style="padding: 32px 24px; color: #cbd5e1; font-size: 15px; line-height: 1.6;">
-        <p style="margin-top: 0;">Hi <strong>${user.name}</strong>,</p>
-        <p>You requested a password reset for your account. Click the button below to set a new password. This link will expire in <strong>30 minutes</strong>.</p>
-        <div style="text-align: center; margin: 28px 0;">
-          <a href="${resetUrl}" style="display: inline-block; background-color: #10b981; color: #ffffff; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-size: 15px;" target="_blank">Reset Password</a>
-        </div>
-        <p style="font-size: 13px; color: #94a3b8;">If the button doesn't work, copy and paste this URL into your browser:</p>
-        <p style="word-break: break-all; font-size: 13px;"><a href="${resetUrl}" style="color: #38bdf8;">${resetUrl}</a></p>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #334155; padding-top: 16px;">If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-      </div>
-      <div style="padding: 16px 24px; background: #0f172a; font-size: 12px; color: #64748b; text-align: center;">
-        &copy; ${new Date().getFullYear()} TaskPulse LMS. All rights reserved.
-      </div>
-    </div>
-  </body>
-  </html>
-  `;
+  <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1f2328">
+    <p style="font-size:15px;font-weight:600;margin:0 0 16px">Ridgeline</p>
+    <p>Hi ${String(user.name).replace(/[<>&"]/g, "")},</p>
+    <p>We received a request to reset your password. The link below is valid for 30 minutes.</p>
+    <p style="margin:24px 0">
+      <a href="${resetUrl}" style="background:#0f6e56;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Reset password</a>
+    </p>
+    <p style="font-size:13px;color:#59636e">Or paste this link into your browser:<br>${resetUrl}</p>
+    <p style="font-size:13px;color:#59636e">If you didn't ask for this, you can ignore this email.</p>
+  </div>`;
 
   await sendEmail({
     to: user.email,
-    subject: "Reset your TaskPulse LMS password",
+    subject: "Reset your Ridgeline password",
     html: emailHtml,
-    text: `Hi ${user.name},\n\nPlease use the following link to reset your password (valid for 30 minutes):\n${resetUrl}\n\nIf you did not request this, please ignore this email.`,
+    text: `Hi ${user.name},\n\nReset your password (valid for 30 minutes):\n${resetUrl}\n\nIf you didn't ask for this, ignore this email.`,
   });
 
   res.json(genericResponse);
@@ -197,7 +175,6 @@ export const resetPassword = asyncHandler(async (req, res) => {
   }
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
   const user = await User.findOne({
     resetPasswordToken: hashedToken,
     resetPasswordExpires: { $gt: Date.now() },
@@ -215,78 +192,76 @@ export const resetPassword = asyncHandler(async (req, res) => {
   res.json({ message: "Password reset successful. You can now log in." });
 });
 
+// Firebase ID tokens are signed by Google. We verify the signature, issuer and audience
+// so the email we trust really comes from a Google sign-in for our Firebase project.
+const firebaseJwks = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+);
+
+const verifyFirebaseIdToken = async (idToken) => {
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+  if (!projectId) {
+    const err = new Error("Google sign-in is not configured on the server (FIREBASE_PROJECT_ID missing).");
+    err.statusCode = 503;
+    throw err;
+  }
+  const { payload } = await jwtVerify(idToken, firebaseJwks, {
+    issuer: `https://securetoken.google.com/${projectId}`,
+    audience: projectId,
+  });
+  if (!payload.email || payload.email_verified === false) {
+    const err = new Error("Your Google account email is not verified.");
+    err.statusCode = 401;
+    throw err;
+  }
+  return payload;
+};
+
 // @route POST /api/auth/google
 export const googleAuth = asyncHandler(async (req, res) => {
-  const { email, name, avatar, googleId } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required for Google authentication." });
+  const { idToken } = req.body;
+  if (!idToken) {
+    return res.status(400).json({ message: "Missing Google ID token." });
   }
 
-  const cleanEmail = email.toLowerCase().trim();
+  let payload;
+  try {
+    payload = await verifyFirebaseIdToken(idToken);
+  } catch (err) {
+    return res
+      .status(err.statusCode || 401)
+      .json({ message: err.statusCode ? err.message : "Google sign-in could not be verified. Please try again." });
+  }
 
-  // Find user by googleId or email
-  let user = await User.findOne({
-    $or: [{ googleId: googleId || "__no_gid__" }, { email: cleanEmail }],
-  }).select("+password");
+  const email = String(payload.email).toLowerCase();
+  const googleId = payload.sub;
+  const name = payload.name || email.split("@")[0];
+  const avatar = payload.picture || "";
+
+  let user = await User.findOne({ $or: [{ googleId }, { email }] }).select("+password");
 
   if (user) {
     if (user.isActive === false) {
       return res.status(403).json({ message: "Your account has been deactivated. Please contact an administrator." });
     }
-    // If user already exists, link Google ID and update avatar if not present
-    let modified = false;
-    if (googleId && !user.googleId) {
-      user.googleId = googleId;
-      modified = true;
-    }
-    if (avatar && !user.avatar) {
-      user.avatar = avatar;
-      modified = true;
-    }
+    if (!user.googleId) user.googleId = googleId;
+    if (!user.avatar && avatar) user.avatar = avatar;
     user.lastLogin = Date.now();
     await user.save({ validateBeforeSave: false });
   } else {
-    // Create new user authenticated via Google
     user = await User.create({
-      name: name || cleanEmail.split("@")[0],
-      email: cleanEmail,
-      avatar: avatar || "",
-      googleId: googleId || "",
+      name,
+      email,
+      avatar,
+      googleId,
       authProvider: "google",
       role: "student",
       lastLogin: new Date(),
     });
-
-    // Notify admins of new registration
-    const admins = await User.find({ role: "admin" });
-    for (const admin of admins) {
-      createNotification({
-        user: admin._id,
-        title: "New Student Registered",
-        message: `${user.name} (${user.email}) registered via Google.`,
-        link: "/admin/students",
-        type: "student_registered",
-      });
-    }
+    notifyAdminsOfSignup(user, "Google");
   }
 
   const token = signToken(user._id);
   sendTokenCookie(res, token);
-
-  res.json({
-    token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      department: user.department,
-      authProvider: user.authProvider,
-      isSuperAdmin: user.isSuperAdmin,
-      hasPassword: !!user.password,
-    },
-  });
+  res.json({ token, user: publicUser(user, !!user.password) });
 });
-

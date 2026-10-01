@@ -1,6 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-
+// Firebase is only needed for "Continue with Google", so it's loaded on demand
+// instead of being shipped in the main bundle.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -10,13 +9,27 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// The Google button hides itself when Firebase isn't configured
+export const googleEnabled = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: "select_account" });
+let authPromise = null;
+const loadAuth = () => {
+  authPromise ||= Promise.all([import("firebase/app"), import("firebase/auth")]).then(([app, auth]) => ({
+    auth: auth.getAuth(app.initializeApp(firebaseConfig)),
+    mod: auth,
+  }));
+  return authPromise;
+};
 
-export const signInWithGooglePopup = () => signInWithPopup(auth, googleProvider);
-
-export default app;
+// Opens the Google popup and returns a Firebase ID token for our server to verify
+export const getGoogleIdToken = async () => {
+  if (!googleEnabled) throw new Error("Google sign-in isn't configured.");
+  const { auth, mod } = await loadAuth();
+  const provider = new mod.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  const result = await mod.signInWithPopup(auth, provider);
+  const idToken = await result.user.getIdToken();
+  // The server issues its own session cookie, so Firebase doesn't need to keep one
+  mod.signOut(auth).catch(() => {});
+  return idToken;
+};

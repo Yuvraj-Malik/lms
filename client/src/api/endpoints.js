@@ -1,11 +1,14 @@
 import api from "./client.js";
 
+const multipart = { headers: { "Content-Type": "multipart/form-data" } };
+
 export const authApi = {
   register: (data) => api.post("/auth/register", data),
   login: (data) => api.post("/auth/login", data),
-  googleAuth: (data) => api.post("/auth/google", data),
+  google: (idToken) => api.post("/auth/google", { idToken }),
   logout: () => api.post("/auth/logout"),
   me: () => api.get("/auth/me"),
+  session: () => api.get("/auth/session"),
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
 };
@@ -13,9 +16,10 @@ export const authApi = {
 export const courseApi = {
   list: (params) => api.get("/courses", { params }),
   categories: () => api.get("/courses/categories"),
+  manage: () => api.get("/courses/manage"),
   get: (id) => api.get(`/courses/${id}`),
-  create: (formData) => api.post("/courses", formData, { headers: { "Content-Type": "multipart/form-data" } }),
-  update: (id, formData) => api.put(`/courses/${id}`, formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  create: (formData) => api.post("/courses", formData, multipart),
+  update: (id, formData) => api.put(`/courses/${id}`, formData, multipart),
   remove: (id) => api.delete(`/courses/${id}`),
 };
 
@@ -23,19 +27,21 @@ export const moduleApi = {
   listForCourse: (courseId) => api.get(`/courses/${courseId}/modules`),
   create: (courseId, data) => api.post(`/courses/${courseId}/modules`, data),
   update: (id, data) => api.put(`/modules/${id}`, data),
+  reorder: (courseId, order) => api.put(`/courses/${courseId}/modules/reorder`, { order }),
   remove: (id) => api.delete(`/modules/${id}`),
   complete: (id) => api.post(`/modules/${id}/complete`),
+  submitQuiz: (id, answers) => api.post(`/modules/${id}/quiz`, { answers }),
 };
 
 export const enrollmentApi = {
   enroll: (courseId) => api.post(`/enrollments/${courseId}`),
   my: () => api.get("/enrollments/my"),
-  status: (courseId) => api.get(`/enrollments/status/${courseId}`),
   forCourse: (courseId) => api.get(`/enrollments/course/${courseId}`),
-  verify: (credentialId) => api.get(`/enrollments/verify/${credentialId}`),
+  verify: (credentialId) => api.get(`/enrollments/verify/${encodeURIComponent(credentialId)}`),
 };
 
 export const assignmentApi = {
+  my: () => api.get("/assignments/my"),
   listForCourse: (courseId) => api.get(`/courses/${courseId}/assignments`),
   get: (id) => api.get(`/assignments/${id}`),
   create: (courseId, data) => api.post(`/courses/${courseId}/assignments`, data),
@@ -44,33 +50,30 @@ export const assignmentApi = {
 };
 
 export const submissionApi = {
-  submit: (assignmentId, formData) =>
-    api.post(`/assignments/${assignmentId}/submissions`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }),
+  submit: (assignmentId, formData) => api.post(`/assignments/${assignmentId}/submissions`, formData, multipart),
   forAssignment: (assignmentId) => api.get(`/assignments/${assignmentId}/submissions`),
   my: () => api.get("/submissions/my"),
   grade: (id, data) => api.put(`/submissions/${id}/grade`, data),
+  fileUrl: (id) => `/api/submissions/${id}/file`,
 };
 
 export const adminApi = {
-  stats: () => api.get("/admin/stats"),
-  enrollmentsByCourse: () => api.get("/admin/analytics/enrollments-by-course"),
-  avgProgressByCourse: () => api.get("/admin/analytics/avg-progress-by-course"),
-  signupsOverTime: () => api.get("/admin/analytics/signups-over-time"),
-  submissionStatusBreakdown: () => api.get("/admin/analytics/submission-status"),
-  students: () => api.get("/admin/students"),
-  studentProgress: (id) => api.get(`/admin/students/${id}/progress`),
+  overview: () => api.get("/admin/overview"),
+  students: (params) => api.get("/admin/students", { params }),
+  directory: (search) => api.get("/admin/directory", { params: { search } }),
+  student: (id) => api.get(`/admin/students/${id}`),
+  enroll: (studentId, courseId) => api.post("/admin/enrollments", { studentId, courseId }),
+  unenroll: (enrollmentId) => api.delete(`/admin/enrollments/${enrollmentId}`),
+  submissions: (params) => api.get("/admin/submissions", { params }),
+  reopenSubmission: (id) => api.post(`/admin/submissions/${id}/reopen`),
+  notify: (data) => api.post("/admin/notifications", data),
+  // super admin only
+  instructors: () => api.get("/admin/instructors"),
   users: (params) => api.get("/admin/users", { params }),
-  updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
-  toggleUserStatus: (id) => api.put(`/admin/users/${id}/status`),
+  createUser: (data) => api.post("/admin/users", data),
+  setRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
+  toggleStatus: (id) => api.put(`/admin/users/${id}/status`),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
-  enrollStudent: (data) => api.post("/admin/students/enroll", data),
-  unenrollStudent: (data) => api.post("/admin/students/unenroll", data),
-  resetSubmission: (id) => api.delete(`/admin/submissions/${id}/reset`),
-  extendDeadline: (data) => api.post("/admin/assignments/extend-deadline", data),
-  allSubmissions: (params) => api.get("/admin/submissions", { params }),
-  sendNotification: (data) => api.post("/admin/notifications", data),
 };
 
 export const dashboardApi = {
@@ -78,8 +81,8 @@ export const dashboardApi = {
 };
 
 export const userApi = {
-  studentProfile: () => api.get("/users/student-profile"),
-  updateProfile: (formData) => api.put("/users/profile", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  profile: () => api.get("/users/student-profile"),
+  update: (formData) => api.put("/users/profile", formData, multipart),
   changePassword: (data) => api.put("/users/change-password", data),
 };
 
@@ -93,7 +96,8 @@ export const notificationApi = {
 export const discussionApi = {
   forCourse: (courseId) => api.get(`/discussions/course/${courseId}`),
   create: (courseId, data) => api.post(`/discussions/course/${courseId}`, data),
-  addReply: (discussionId, data) => api.post(`/discussions/${discussionId}/reply`, data),
-  toggleUpvote: (discussionId) => api.post(`/discussions/${discussionId}/upvote`),
+  reply: (id, content) => api.post(`/discussions/${id}/reply`, { content }),
+  upvote: (id) => api.post(`/discussions/${id}/upvote`),
+  remove: (id) => api.delete(`/discussions/${id}`),
+  removeReply: (id, replyId) => api.delete(`/discussions/${id}/replies/${replyId}`),
 };
-

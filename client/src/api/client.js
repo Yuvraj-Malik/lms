@@ -6,6 +6,6 @@ const api = axios.create({
 });
 
 export const getErrorMessage = (err) =>
-  err?.response?.data?.message || err?.message || "Something went wrong. Please try again.";
+  err?.response?.data?.message || (err?.request && !err?.response ? "Can't reach the server. Is it running?" : err?.message) || "Something went wrong. Please try again.";
 
 export default api;
