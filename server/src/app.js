@@ -18,6 +18,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import discussionRoutes from "./routes/discussionRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import { UPLOAD_ROOT } from "./middleware/upload.js";
+import { getSettings, publicSettings } from "./utils/settings.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -45,6 +46,15 @@ app.use("/uploads/avatars", express.static(path.join(UPLOAD_ROOT, "avatars")));
 app.use("/uploads/course-images", express.static(path.join(UPLOAD_ROOT, "course-images")));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+// Switches the sign-in pages and site banner need before anyone logs in
+app.get("/api/settings/public", async (req, res, next) => {
+  try {
+    res.json(publicSettings(await getSettings()));
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Slow down password guessing and reset-email spam
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 50, standardHeaders: true, legacyHeaders: false });

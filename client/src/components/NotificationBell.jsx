@@ -5,12 +5,33 @@ import { notificationApi } from "../api/endpoints.js";
 import { timeAgo } from "../lib/format.js";
 import { cx } from "./ui.jsx";
 
-export default function NotificationBell({ placement = "down" }) {
+export default function NotificationBell({ placement = "down", align = "auto" }) {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const [resolvedAlign, setResolvedAlign] = useState(align === "auto" ? "right" : align);
   const box = useRef(null);
   const navigate = useNavigate();
+
+  const updateAlign = useCallback(() => {
+    if (align !== "auto") {
+      setResolvedAlign(align);
+      return;
+    }
+    if (!box.current) return;
+    const rect = box.current.getBoundingClientRect();
+    const spaceOnRight = window.innerWidth - rect.left;
+    const spaceOnLeft = rect.right;
+    setResolvedAlign(spaceOnRight >= spaceOnLeft ? "left" : "right");
+  }, [align]);
+
+  useEffect(() => {
+    if (open) {
+      updateAlign();
+      window.addEventListener("resize", updateAlign);
+      return () => window.removeEventListener("resize", updateAlign);
+    }
+  }, [open, updateAlign]);
 
   const load = useCallback(async () => {
     try {
@@ -69,7 +90,10 @@ export default function NotificationBell({ placement = "down" }) {
       <button
         type="button"
         onClick={() => {
-          if (!open) load();
+          if (!open) {
+            updateAlign();
+            load();
+          }
           setOpen((v) => !v);
         }}
         aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
@@ -87,7 +111,9 @@ export default function NotificationBell({ placement = "down" }) {
         <div
           className={cx(
             "animate-pop absolute z-50 w-[min(360px,calc(100vw-1.5rem))] overflow-hidden rounded-lg bg-surface shadow-pop",
-            placement === "up" ? "bottom-full left-0 mb-2" : "right-0 top-full mt-2"
+            placement === "up"
+              ? (resolvedAlign === "left" ? "bottom-full left-0 mb-2" : "bottom-full right-0 mb-2")
+              : (resolvedAlign === "left" ? "left-0 top-full mt-2" : "right-0 top-full mt-2")
           )}
         >
           <div className="flex items-center justify-between border-b border-line px-4 py-2.5">

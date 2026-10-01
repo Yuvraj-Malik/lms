@@ -6,6 +6,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { ownsCourse, loadManagedCourse, HttpError } from "../utils/access.js";
 import { createNotification } from "./notificationController.js";
 import { removeUpload } from "../middleware/upload.js";
+import { audit } from "../utils/audit.js";
 
 const readAssignmentFields = (body, { partial }) => {
   const out = {};
@@ -128,6 +129,7 @@ export const createAssignment = asyncHandler(async (req, res) => {
     )
   );
 
+  audit(req, "assignment.create", `Posted "${assignment.title}" in ${course.title}`, { targetType: "course", targetId: course._id, link: `/admin/courses/${course._id}?tab=assignments` });
   res.status(201).json({ assignment });
 });
 
@@ -139,6 +141,7 @@ export const updateAssignment = asyncHandler(async (req, res) => {
 
   Object.assign(assignment, readAssignmentFields(req.body, { partial: true }));
   await assignment.save();
+  audit(req, "assignment.update", `Edited assignment "${assignment.title}"`, { targetType: "course", targetId: assignment.course, link: `/admin/courses/${assignment.course}?tab=assignments` });
   res.json({ assignment });
 });
 
@@ -152,6 +155,7 @@ export const deleteAssignment = asyncHandler(async (req, res) => {
   subs.forEach((s) => removeUpload(s.filePath));
   await Submission.deleteMany({ assignment: assignment._id });
   await assignment.deleteOne();
+  audit(req, "assignment.delete", `Deleted assignment "${assignment.title}" (${subs.length} submissions)`, { targetType: "course", targetId: assignment.course, link: `/admin/courses/${assignment.course}?tab=assignments` });
 
   res.json({ message: "Assignment and its submissions deleted." });
 });

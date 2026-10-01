@@ -4,6 +4,7 @@ import { courseApi } from "../../api/endpoints.js";
 import useAsync from "../../lib/useAsync.js";
 import CourseCard from "../../components/CourseCard.jsx";
 import { Button } from "../../components/ui.jsx";
+import { usePlatform } from "../../context/PlatformContext.jsx";
 
 const STEPS = [
   ["Enroll", "Browse the catalog and join a course in one click. Everything you join shows up on your dashboard."],
@@ -19,6 +20,7 @@ const FOR_INSTRUCTORS = [
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const { platform } = usePlatform();
   const featured = useAsync(async () => (await courseApi.list({ sort: "newest" })).data.courses.slice(0, 3), []);
 
   if (!loading && user) return <Navigate to={homePathFor(user)} replace />;
@@ -26,7 +28,7 @@ export default function Home() {
   return (
     <div>
       <section className="mx-auto max-w-[1120px] px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
-        <p className="text-sm font-medium text-accent-fg">Ridgeline learning management system</p>
+        <p className="text-sm font-medium text-accent-fg">{platform.platformName} learning management system</p>
         <h1 className="mt-3 max-w-2xl text-[40px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-5xl">
           Courses, quizzes and assignments, all in one place.
         </h1>
@@ -35,9 +37,15 @@ export default function Home() {
           set work and grade it from a single dashboard.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Button to="/register" variant="primary" size="lg">
-            Create a free account
-          </Button>
+          {platform.registrationOpen ? (
+            <Button to="/register" variant="primary" size="lg">
+              Create a free account
+            </Button>
+          ) : (
+            <Button to="/login" variant="primary" size="lg">
+              Sign in
+            </Button>
+          )}
           <Button to="/courses" size="lg">
             Browse courses
           </Button>

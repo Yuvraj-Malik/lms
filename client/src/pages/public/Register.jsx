@@ -5,9 +5,11 @@ import { getErrorMessage } from "../../api/client.js";
 import AuthLayout from "../../components/AuthLayout.jsx";
 import GoogleButton from "../../components/GoogleButton.jsx";
 import { Button, Input, Notice } from "../../components/ui.jsx";
+import { usePlatform } from "../../context/PlatformContext.jsx";
 
 export default function Register() {
   const { user, register, loginWithGoogle } = useAuth();
+  const { platform } = usePlatform();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "", adminCode: "" });
   const [instructor, setInstructor] = useState(false);
@@ -62,7 +64,12 @@ export default function Register() {
         </>
       }
     >
-      {!instructor && <GoogleButton label="Sign up with Google" onSuccess={async () => navigate(homePathFor(await loginWithGoogle()))} onError={setError} />}
+      {!platform.registrationOpen && !instructor && (
+        <Notice tone="warn" title="Registration is closed" className="mb-5">
+          New student accounts are turned off right now. Contact the administrator.
+        </Notice>
+      )}
+      {!instructor && platform.registrationOpen && <GoogleButton label="Sign up with Google" onSuccess={async () => navigate(homePathFor(await loginWithGoogle()))} onError={setError} />}
       <form onSubmit={submit} className="space-y-4" noValidate>
         {error && <Notice tone="danger">{error}</Notice>}
         <Input label="Full name" autoComplete="name" value={form.name} onChange={set("name")} error={errors.name} autoFocus />
@@ -85,12 +92,12 @@ export default function Register() {
             hint="Instructors get a code from the platform's super admin."
           />
         )}
-        <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy}>
+        <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy} disabled={!instructor && !platform.registrationOpen}>
           {instructor ? "Create instructor account" : "Create account"}
         </Button>
-        <button type="button" onClick={() => setInstructor((v) => !v)} className="w-full text-center text-[13px] text-fg-muted hover:text-fg">
+        {platform.instructorSignupEnabled && <button type="button" onClick={() => setInstructor((v) => !v)} className="w-full text-center text-[13px] text-fg-muted hover:text-fg">
           {instructor ? "Sign up as a student instead" : "I'm an instructor"}
-        </button>
+        </button>}
       </form>
     </AuthLayout>
   );

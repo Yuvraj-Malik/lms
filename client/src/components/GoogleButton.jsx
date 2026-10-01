@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { googleEnabled } from "../config/firebase.js";
+import { usePlatform } from "../context/PlatformContext.jsx";
 import { getErrorMessage } from "../api/client.js";
 import { Button } from "./ui.jsx";
 
@@ -14,7 +15,8 @@ const GoogleGlyph = () => (
 
 export default function GoogleButton({ onSuccess, onError, label = "Continue with Google" }) {
   const [busy, setBusy] = useState(false);
-  if (!googleEnabled) return null;
+  const { platform } = usePlatform();
+  if (!googleEnabled || !platform.googleSignInEnabled) return null;
 
   const go = async () => {
     setBusy(true);

@@ -7,6 +7,8 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { recalcProgress, recalcCourseProgress } from "../utils/progress.js";
 import { ownsCourse, loadManagedCourse, HttpError } from "../utils/access.js";
 import { createNotification } from "./notificationController.js";
+import { getSettings } from "../utils/settings.js";
+import { audit } from "../utils/audit.js";
 
 const normaliseLinks = (links) => {
   if (links === undefined) return undefined;
@@ -94,8 +96,9 @@ export const createModule = asyncHandler(async (req, res) => {
     resourceLinks: normaliseLinks(resourceLinks) || [],
     moduleOrder: order,
     quiz: normaliseQuiz(quiz) || [],
-    quizPassPercent: quizPassPercent !== undefined ? Number(quizPassPercent) : 60,
+    quizPassPercent: quizPassPercent !== undefined && quizPassPercent !== "" ? Number(quizPassPercent) : (await getSettings()).defaultQuizPassPercent,
   });
+  audit(req, "module.create", `Added module "${module.title}" to ${course.title}`, { targetType: "course", targetId: course._id, link: `/admin/courses/${course._id}` });
 
   await recalcCourseProgress(course._id);
   res.status(201).json({ module });
@@ -121,6 +124,7 @@ export const updateModule = asyncHandler(async (req, res) => {
   if (quizPassPercent !== undefined) module.quizPassPercent = Number(quizPassPercent);
 
   await module.save();
+  audit(req, "module.update", `Edited module "${module.title}"`, { targetType: "course", targetId: module.course, link: `/admin/courses/${module.course}` });
   res.json({ module });
 });
 
@@ -155,6 +159,7 @@ export const deleteModule = asyncHandler(async (req, res) => {
     { $inc: { moduleOrder: -1 } }
   );
   await recalcCourseProgress(module.course);
+  audit(req, "module.delete", `Deleted module "${module.title}"`, { targetType: "course", targetId: module.course, link: `/admin/courses/${module.course}` });
 
   res.json({ message: "Module deleted." });
 });

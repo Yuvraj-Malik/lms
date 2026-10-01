@@ -8,6 +8,8 @@ import QuizAttempt from "../models/QuizAttempt.js";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { isSuper, ownsCourse, loadManagedCourse, managedCourseIds } from "../utils/access.js";
+import { getSettings } from "../utils/settings.js";
+import { audit } from "../utils/audit.js";
 
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
 const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
@@ -121,6 +123,17 @@ const readCourseFields = (body) => {
   return out;
 };
 
+// When the super admin turns off "instructors can publish", only the super admin can make a course live
+const assertCanPublish = async (req, fields, wasPublished) => {
+  if (!fields.isPublished || wasPublished || isSuper(req.user)) return;
+  const settings = await getSettings();
+  if (!settings.instructorsCanPublish) {
+    const err = new Error("Publishing needs super admin approval. Save it as a draft and ask the super admin to publish it.");
+    err.statusCode = 403;
+    throw err;
+  }
+};
+
 // Super admin may hand a course to another instructor
 const resolveOwner = async (req, fallback) => {
   if (!isSuper(req.user) || !req.body.owner) return fallback;
@@ -141,22 +154,40 @@ export const createCourse = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: `Missing required fields: ${missing.join(", ")}.` });
   }
 
+  await assertCanPublish(req, fields, false);
+
   const course = await Course.create({
     ...fields,
     image: req.file ? `/uploads/course-images/${req.file.filename}` : "",
     createdBy: await resolveOwner(req, req.user._id),
   });
+  audit(req, "course.create", `Created course "${course.title}"`, { targetType: "course", targetId: course._id, link: `/admin/courses/${course._id}` });
   res.status(201).json({ course });
 });
 
 // @route PUT /api/courses/:id (owner or super admin)
 export const updateCourse = asyncHandler(async (req, res) => {
   const course = await loadManagedCourse(req.user, req.params.id);
-  Object.assign(course, readCourseFields(req.body));
+  const fields = readCourseFields(req.body);
+  await assertCanPublish(req, fields, course.isPublished);
+  const wasPublished = course.isPublished;
+  const previousOwner = String(course.createdBy);
+  Object.assign(course, fields);
   if (req.file) course.image = `/uploads/course-images/${req.file.filename}`;
   if (toBool(req.body.removeImage)) course.image = "";
   course.createdBy = await resolveOwner(req, course.createdBy);
   await course.save();
+
+  const link = `/admin/courses/${course._id}`;
+  if (wasPublished !== course.isPublished) {
+    audit(req, course.isPublished ? "course.publish" : "course.unpublish", `${course.isPublished ? "Published" : "Unpublished"} "${course.title}"`, { targetType: "course", targetId: course._id, link });
+  } else {
+    audit(req, "course.update", `Edited course "${course.title}"`, { targetType: "course", targetId: course._id, link });
+  }
+  if (previousOwner !== String(course.createdBy)) {
+    const owner = await User.findById(course.createdBy).select("name");
+    audit(req, "course.transfer", `Transferred "${course.title}" to ${owner?.name}`, { targetType: "course", targetId: course._id, link });
+  }
   res.json({ course });
 });
 
@@ -175,6 +206,7 @@ export const deleteCourse = asyncHandler(async (req, res) => {
     QuizAttempt.deleteMany({ course: course._id }),
     course.deleteOne(),
   ]);
+  audit(req, "course.delete", `Deleted course "${course.title}" and all its content`, { targetType: "course" });
 
   res.json({ message: "Course and all related data deleted." });
 });

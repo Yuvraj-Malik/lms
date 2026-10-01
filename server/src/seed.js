@@ -16,6 +16,8 @@ import Submission from "./models/Submission.js";
 import Discussion from "./models/Discussion.js";
 import QuizAttempt from "./models/QuizAttempt.js";
 import Notification from "./models/Notification.js";
+import AuditLog from "./models/AuditLog.js";
+import Setting from "./models/Setting.js";
 
 const run = async () => {
   // This script wipes every collection. Refuse to touch a production database by accident.
@@ -35,6 +37,8 @@ const run = async () => {
     Discussion.deleteMany({}),
     QuizAttempt.deleteMany({}),
     Notification.deleteMany({}),
+    AuditLog.deleteMany({}),
+    Setting.deleteMany({}),
   ]);
 
   console.log("Creating users...");

@@ -1,3 +1,5 @@
+import { usePlatform } from "../context/PlatformContext.jsx";
+
 export const BrandMark = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" className="shrink-0">
     <rect width="32" height="32" rx="7" className="fill-accent" />
@@ -5,11 +7,14 @@ export const BrandMark = ({ size = 24 }) => (
   </svg>
 );
 
-const BrandLogo = ({ size = 24 }) => (
-  <span className="inline-flex items-center gap-2">
-    <BrandMark size={size} />
-    <span className="text-[15px] font-semibold tracking-tight text-fg">Ridgeline</span>
-  </span>
-);
+const BrandLogo = ({ size = 24 }) => {
+  const { platform } = usePlatform();
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <BrandMark size={size} />
+      <span className="truncate text-[15px] font-semibold tracking-tight text-fg">{platform.platformName}</span>
+    </span>
+  );
+};
 
 export default BrandLogo;

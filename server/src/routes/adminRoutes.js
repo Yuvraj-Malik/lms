@@ -16,6 +16,11 @@ import {
   deleteUser,
   sendAdminNotification,
   studentDirectory,
+  updateUserDetails,
+  setUserPassword,
+  getPlatformSettings,
+  updatePlatformSettings,
+  getAuditLog,
 } from "../controllers/adminController.js";
 import { protect, requireRole, requireSuperAdmin } from "../middleware/auth.js";
 
@@ -40,6 +45,11 @@ router.get("/users", requireSuperAdmin, getAllUsers);
 router.post("/users", requireSuperAdmin, createUser);
 router.put("/users/:id/role", requireSuperAdmin, updateUserRole);
 router.put("/users/:id/status", requireSuperAdmin, toggleUserStatus);
+router.put("/users/:id", requireSuperAdmin, updateUserDetails);
+router.post("/users/:id/password", requireSuperAdmin, setUserPassword);
 router.delete("/users/:id", requireSuperAdmin, deleteUser);
+router.get("/settings", requireSuperAdmin, getPlatformSettings);
+router.put("/settings", requireSuperAdmin, updatePlatformSettings);
+router.get("/audit", requireSuperAdmin, getAuditLog);
 
 export default router;

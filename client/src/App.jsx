@@ -13,10 +13,13 @@ import {
   User,
   Users as UsersIcon,
   Library,
+  SlidersHorizontal,
+  History,
 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
+import { PlatformProvider } from "./context/PlatformContext.jsx";
 import { FeedbackProvider } from "./components/ui.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AppShell from "./components/AppShell.jsx";
@@ -52,6 +55,8 @@ import AdminStudents from "./pages/admin/AdminStudents.jsx";
 import StudentDetail from "./pages/admin/StudentDetail.jsx";
 import Announcements from "./pages/admin/Announcements.jsx";
 import Users from "./pages/admin/Users.jsx";
+import PlatformSettings from "./pages/admin/PlatformSettings.jsx";
+import ActivityLog from "./pages/admin/ActivityLog.jsx";
 
 const studentNav = [
   {
@@ -85,7 +90,16 @@ const adminNav = (isSuper) => [
       { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
     ],
   },
-  ...(isSuper ? [{ title: "Super admin", items: [{ to: "/admin/users", label: "Users & roles", icon: ShieldCheck }] }] : []),
+  ...(isSuper ? [
+        {
+          title: "Super admin",
+          items: [
+            { to: "/admin/users", label: "Users & roles", icon: ShieldCheck },
+            { to: "/admin/platform", label: "Platform settings", icon: SlidersHorizontal },
+            { to: "/admin/activity", label: "Activity log", icon: History },
+          ],
+        },
+      ] : []),
   { title: "You", items: [{ to: "/admin/settings", label: "Settings", icon: Settings }] },
 ];
 
@@ -104,6 +118,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <FeedbackProvider>
+        <PlatformProvider>
         <AuthProvider>
           <BrowserRouter>
             <Routes>
@@ -150,6 +165,8 @@ export default function App() {
                   <Route path="/admin/settings" element={<AccountSettings />} />
                   <Route element={<ProtectedRoute role="admin" superOnly />}>
                     <Route path="/admin/users" element={<Users />} />
+                    <Route path="/admin/platform" element={<PlatformSettings />} />
+                    <Route path="/admin/activity" element={<ActivityLog />} />
                   </Route>
                 </Route>
               </Route>
@@ -159,6 +176,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
         </AuthProvider>
+        </PlatformProvider>
       </FeedbackProvider>
     </ThemeProvider>
   );

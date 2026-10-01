@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import BrandLogo from "./BrandLogo.jsx";
+import SiteBanner from "./SiteBanner.jsx";
 
 export default function AuthLayout({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
+      <SiteBanner />
       <header className="px-6 py-5">
         <Link to="/" className="inline-block">
           <BrandLogo />

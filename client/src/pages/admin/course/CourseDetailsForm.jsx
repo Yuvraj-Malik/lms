@@ -4,6 +4,7 @@ import { ImagePlus } from "lucide-react";
 import { adminApi, courseApi } from "../../../api/endpoints.js";
 import { getErrorMessage } from "../../../api/client.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { usePlatform } from "../../../context/PlatformContext.jsx";
 import { Button, Input, Notice, Panel, Select, Switch, Textarea, useFeedback } from "../../../components/ui.jsx";
 
 const EMPTY = { title: "", description: "", category: "", instructor: "", duration: "", difficulty: "Beginner", isPublished: false, owner: "" };
@@ -11,6 +12,8 @@ const EMPTY = { title: "", description: "", category: "", instructor: "", durati
 // Create (course === undefined) or edit a course's details
 export default function CourseDetailsForm({ course, onSaved }) {
   const { user, isSuper } = useAuth();
+  const { platform } = usePlatform();
+  const publishLocked = !isSuper && !platform.instructorsCanPublish && !course?.isPublished;
   const navigate = useNavigate();
   const { toast, confirm } = useFeedback();
   const fileRef = useRef(null);
@@ -174,8 +177,14 @@ export default function CourseDetailsForm({ course, onSaved }) {
           label="Published"
           description="Published courses appear in the catalog and students can enroll. Drafts are only visible to you and the super admin."
           checked={form.isPublished}
+          disabled={publishLocked}
           onChange={(v) => setForm((f) => ({ ...f, isPublished: v }))}
         />
+        {publishLocked && (
+          <Notice tone="info" className="mb-3">
+            Publishing needs super admin approval on this platform. Save the course as a draft and ask the super admin to publish it.
+          </Notice>
+        )}
       </Panel>
 
       {isSuper && (

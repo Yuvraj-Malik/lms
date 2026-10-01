@@ -6,6 +6,8 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { ownsCourse, loadManagedCourse } from "../utils/access.js";
 import { createNotification } from "./notificationController.js";
 import { removeUpload, resolveUpload } from "../middleware/upload.js";
+import { getSettings } from "../utils/settings.js";
+import { audit } from "../utils/audit.js";
 
 const LINK_TYPES = ["github", "drive", "url"];
 const isHttpUrl = (s) => {
@@ -70,6 +72,10 @@ export const submitAssignment = asyncHandler(async (req, res) => {
   if (existing?.filePath && existing.filePath !== update.filePath) removeUpload(existing.filePath);
 
   const isLate = new Date() > new Date(assignment.deadline);
+  if (isLate && !(await getSettings()).allowLateSubmissions) {
+    discardUpload();
+    return res.status(403).json({ message: "The deadline has passed and late submissions are turned off." });
+  }
   const submission = await Submission.findOneAndUpdate(
     { assignment: assignment._id, student: req.user._id },
     {
@@ -146,6 +152,7 @@ export const gradeSubmission = asyncHandler(async (req, res) => {
   });
 
   await submission.populate("student", "name email avatar");
+  audit(req, "submission.grade", `Graded ${submission.student?.name}'s "${assignment.title}": ${marks}/${assignment.maximumMarks}`, { targetType: "submission", targetId: submission._id, link: `/admin/submissions?open=${submission._id}` });
   res.json({ submission, message: "Submission graded." });
 });
 

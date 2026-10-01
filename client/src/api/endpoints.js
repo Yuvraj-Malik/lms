@@ -74,6 +74,11 @@ export const adminApi = {
   setRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
   toggleStatus: (id) => api.put(`/admin/users/${id}/status`),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+  setPassword: (id, password) => api.post(`/admin/users/${id}/password`, { password }),
+  settings: () => api.get("/admin/settings"),
+  saveSettings: (data) => api.put("/admin/settings", data),
+  audit: (params) => api.get("/admin/audit", { params }),
 };
 
 export const dashboardApi = {

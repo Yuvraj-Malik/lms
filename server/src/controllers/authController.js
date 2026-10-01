@@ -5,6 +5,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { signToken, sendTokenCookie } from "../utils/generateToken.js";
 import sendEmail from "../utils/sendEmail.js";
 import { createNotification } from "./notificationController.js";
+import { getSettings, instructorCode } from "../utils/settings.js";
 
 // Shape of the user object the client receives after any auth action
 export const publicUser = (user, hasPassword) => ({
@@ -58,15 +59,20 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(409).json({ message: "An account with this email already exists." });
   }
 
-  // Instructor (admin) sign-up is only possible when ADMIN_SIGNUP_CODE is configured
-  // on the server and the caller supplies it. There is no built-in fallback code.
-  const signupCode = process.env.ADMIN_SIGNUP_CODE;
+  // The super admin controls who may sign up from Platform settings
+  const settings = await getSettings();
   let finalRole = "student";
   if (role === "admin") {
-    if (!signupCode || adminCode !== signupCode) {
+    const code = instructorCode(settings);
+    if (!settings.instructorSignupEnabled || !code) {
+      return res.status(403).json({ message: "Instructor sign-up is turned off. Ask the super admin to create your account." });
+    }
+    if (adminCode !== code) {
       return res.status(403).json({ message: "Invalid instructor access code." });
     }
     finalRole = "admin";
+  } else if (!settings.registrationOpen) {
+    return res.status(403).json({ message: "New registrations are closed right now. Contact the administrator." });
   }
 
   const user = await User.create({ name: name.trim(), email, password, role: finalRole });
@@ -220,6 +226,10 @@ const verifyFirebaseIdToken = async (idToken) => {
 // @route POST /api/auth/google
 export const googleAuth = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
+  const settings = await getSettings();
+  if (!settings.googleSignInEnabled) {
+    return res.status(403).json({ message: "Google sign-in is turned off. Use your email and password." });
+  }
   if (!idToken) {
     return res.status(400).json({ message: "Missing Google ID token." });
   }
@@ -249,6 +259,9 @@ export const googleAuth = asyncHandler(async (req, res) => {
     user.lastLogin = Date.now();
     await user.save({ validateBeforeSave: false });
   } else {
+    if (!settings.registrationOpen) {
+      return res.status(403).json({ message: "New registrations are closed right now. Contact the administrator." });
+    }
     user = await User.create({
       name,
       email,

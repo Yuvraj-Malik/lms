@@ -157,6 +157,27 @@ const main = async () => {
   await superA.put(`/admin/users/${rohan.user._id}/status`);
   check("reactivated user works again", (await rohan.get("/auth/me")).status === 200);
 
+  console.log("\nPlatform settings & activity log");
+  check("instructor cannot read platform settings", (await inst.get("/admin/settings")).status === 403);
+  check("super admin closes registration", (await superA.put("/admin/settings", { registrationOpen: false })).settings?.registrationOpen === false);
+  check("public settings reflect it", (await anon("GET", "/settings/public")).registrationOpen === false);
+  check("sign-up blocked while closed", (await anon("POST", "/auth/register", { name: "Y", email: `y${Date.now()}@t.io`, password: "secret1" })).status === 403);
+  await superA.put("/admin/settings", { registrationOpen: true, instructorsCanPublish: false });
+  const draft = await inst.post("/courses", { title: "Needs approval", description: "d", category: "Testing", instructor: "X", duration: "1 week", isPublished: "false" });
+  check("instructor publish blocked when approval is required", (await inst.put(`/courses/${draft.course._id}`, { isPublished: "true" })).status === 403);
+  check("super admin can publish it", (await superA.put(`/courses/${draft.course._id}`, { isPublished: "true" })).course?.isPublished === true);
+  await superA.put("/admin/settings", { instructorsCanPublish: true, instructorSignupEnabled: true, instructorSignupCode: "TEST-CODE-1234" });
+  check("instructor sign-up with the code set in the UI", (await anon("POST", "/auth/register", { name: "Z", email: `z${Date.now()}@t.io`, password: "secret1", role: "admin", adminCode: "TEST-CODE-1234" })).user?.role === "admin");
+  await superA.put("/admin/settings", { instructorSignupEnabled: false, instructorSignupCode: "" });
+  await inst.del(`/courses/${draft.course._id}`);
+  check("super admin edits a user's details", (await superA.put(`/admin/users/${rohan.user._id}`, { name: "Rohan V." })).user?.name === "Rohan V.");
+  await superA.put(`/admin/users/${rohan.user._id}`, { name: "Rohan Verma" });
+  check("super admin sets a password", (await superA.post(`/admin/users/${rohan.user._id}/password`, { password: "student123" })).status === 200);
+  const log = await superA.get("/admin/audit");
+  check("actions are recorded in the activity log", log.entries?.some((e) => e.action === "course.publish") && log.entries.some((e) => e.action === "settings.update"));
+  check("instructor cannot read the activity log", (await inst.get("/admin/audit")).status === 403);
+  check("super overview lists instructors", Array.isArray((await superA.get("/admin/overview")).instructors));
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 };

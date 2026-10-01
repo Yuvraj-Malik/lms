@@ -5,9 +5,11 @@ import { getErrorMessage } from "../../api/client.js";
 import AuthLayout from "../../components/AuthLayout.jsx";
 import GoogleButton from "../../components/GoogleButton.jsx";
 import { Button, Input, Notice } from "../../components/ui.jsx";
+import { usePlatform } from "../../context/PlatformContext.jsx";
 
 export default function Login() {
   const { user, login, loginWithGoogle } = useAuth();
+  const { platform } = usePlatform();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -40,7 +42,7 @@ export default function Login() {
       title="Sign in"
       subtitle="Welcome back. Pick up where you left off."
       footer={
-        <>
+        platform.registrationOpen && <>
           New here?{" "}
           <Link to="/register" className="font-medium text-fg underline-offset-4 hover:underline">
             Create an account

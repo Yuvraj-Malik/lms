@@ -179,7 +179,7 @@ export const Switch = ({ checked, onChange, label, description, disabled }) => {
 /* ── Layout primitives ───────────────────────────────────────────────── */
 
 export const Panel = ({ title, description, actions, children, className, bodyClassName, flush = false, footer }) => (
-  <section className={cx("rounded-lg border border-line bg-surface", className)}>
+  <section className={cx("flex flex-col rounded-lg border border-line bg-surface", className)}>
     {(title || actions) && (
       <header className="flex min-h-[52px] items-center justify-between gap-4 border-b border-line px-5 py-2.5">
         <div className="min-w-0">
@@ -189,7 +189,7 @@ export const Panel = ({ title, description, actions, children, className, bodyCl
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </header>
     )}
-    <div className={cx(!flush && "p-5", bodyClassName)}>{children}</div>
+    <div className={cx("flex-1", !flush && "p-5", bodyClassName)}>{children}</div>
     {footer && <footer className="border-t border-line px-5 py-3">{footer}</footer>}
   </section>
 );

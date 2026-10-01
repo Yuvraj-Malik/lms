@@ -4,6 +4,7 @@ import { Download, ExternalLink, Upload } from "lucide-react";
 import { assignmentApi, submissionApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
 import useAsync from "../../lib/useAsync.js";
+import { usePlatform } from "../../context/PlatformContext.jsx";
 import { assignmentState, dueLabel, fmtDateTime } from "../../lib/format.js";
 import { Button, ErrorState, Input, Notice, PageHeader, PageLoader, Panel, Segmented, StatusBadge, Textarea, cx, useFeedback } from "../../components/ui.jsx";
 
@@ -38,6 +39,7 @@ const SubmissionView = ({ s }) => {
 export default function AssignmentDetail() {
   const { id } = useParams();
   const { toast } = useFeedback();
+  const { platform } = usePlatform();
   const fileInput = useRef(null);
   const { data, loading, error, reload, setData } = useAsync(async () => (await assignmentApi.get(id)).data, [id]);
   const [editing, setEditing] = useState(false);
@@ -54,7 +56,8 @@ export default function AssignmentDetail() {
   const { assignment, mySubmission } = data;
   const state = assignmentState(assignment, mySubmission);
   const overdue = new Date(assignment.deadline) < new Date();
-  const showForm = !mySubmission || (editing && mySubmission.status !== "graded");
+  const lateBlocked = overdue && !platform.allowLateSubmissions;
+  const showForm = !lateBlocked && (!mySubmission || (editing && mySubmission.status !== "graded"));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -114,7 +117,7 @@ export default function AssignmentDetail() {
               title="Your submission"
               description={`Submitted ${fmtDateTime(mySubmission.submissionDate)}`}
               actions={
-                mySubmission.status !== "graded" && (
+                mySubmission.status !== "graded" && !lateBlocked && (
                   <Button size="sm" onClick={startEdit}>
                     Replace submission
                   </Button>
@@ -139,6 +142,12 @@ export default function AssignmentDetail() {
                 </div>
               )}
             </Panel>
+          )}
+
+          {lateBlocked && !mySubmission && (
+            <Notice tone="danger" title="Submissions are closed">
+              The deadline has passed and late submissions aren't accepted on this platform. Contact your instructor.
+            </Notice>
           )}
 
           {showForm && (

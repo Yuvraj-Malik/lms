@@ -6,6 +6,7 @@ import { useTheme } from "../context/ThemeContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import BrandLogo from "./BrandLogo.jsx";
 import { Avatar, cx } from "./ui.jsx";
+import SiteBanner from "./SiteBanner.jsx";
 
 const NavItem = ({ item, onNavigate }) => (
   <NavLink
@@ -88,7 +89,7 @@ const Sidebar = ({ sections, onNavigate, inDrawer = false }) => (
       <Link to="/" onClick={onNavigate}>
         <BrandLogo />
       </Link>
-      {!inDrawer && <NotificationBell />}
+      {!inDrawer && <NotificationBell align="left" />}
     </div>
     <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
       {sections.map((s) => (
@@ -114,6 +115,9 @@ export default function AppShell({ sections }) {
 
   useEffect(() => {
     setDrawer(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
@@ -130,7 +134,7 @@ export default function AppShell({ sections }) {
           <Menu size={18} />
         </button>
         <BrandLogo size={22} />
-        <NotificationBell />
+        <NotificationBell align="right" />
       </div>
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
@@ -145,6 +149,7 @@ export default function AppShell({ sections }) {
       )}
 
       <main className="lg:pl-60 print:p-0">
+        <SiteBanner />
         <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8 print:max-w-none print:p-0">
           <Outlet />
         </div>

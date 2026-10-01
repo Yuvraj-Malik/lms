@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Trash2, UserPlus } from "lucide-react";
+import { Pencil, Trash2, UserPlus, Download } from "lucide-react";
 import { adminApi } from "../../api/endpoints.js";
 import { getErrorMessage } from "../../api/client.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import useAsync from "../../lib/useAsync.js";
+import { exportToCsv } from "../../utils/csvExport.js";
 import { fmtDate, timeAgo } from "../../lib/format.js";
 import { Avatar, Badge, Button, Dialog, EmptyState, ErrorState, IconButton, Input, Notice, PageHeader, PageLoader, SearchInput, Select, Table, Td, Th, cx, useFeedback } from "../../components/ui.jsx";
 
@@ -62,13 +63,86 @@ const CreateUserDialog = ({ onClose, onCreated }) => {
   );
 };
 
+const EditUserDialog = ({ user, onClose, onSaved }) => {
+  const { toast } = useFeedback();
+  const [form, setForm] = useState({ name: user.name, email: user.email, department: user.department || "" });
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await adminApi.updateUser(user._id, form);
+      toast(data.message);
+      onSaved(data.user);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changePassword = async () => {
+    if (password.length < 6) return setError("New password must be at least 6 characters.");
+    setPwBusy(true);
+    setError("");
+    try {
+      const { data } = await adminApi.setPassword(user._id, password);
+      toast(data.message);
+      setPassword("");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`Edit ${user.name}`}
+      footer={
+        <>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" onClick={save} loading={busy}>
+            Save details
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Input label="Full name" value={form.name} onChange={set("name")} />
+        <Input label="Email" type="email" value={form.email} onChange={set("email")} hint="They'll sign in with this address." />
+        <Input label="Department or programme" value={form.department} onChange={set("department")} />
+        <div className="border-t border-line pt-4">
+          <div className="text-[13px] font-medium">Set a new password</div>
+          <p className="mt-0.5 text-xs text-fg-muted">Use this when someone is locked out. Share the new password with them privately.</p>
+          <div className="mt-2 flex gap-2">
+            <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" className="flex-1" aria-label="New password" />
+            <Button onClick={changePassword} loading={pwBusy} disabled={!password}>
+              Set password
+            </Button>
+          </div>
+        </div>
+        {error && <Notice tone="danger">{error}</Notice>}
+      </div>
+    </Dialog>
+  );
+};
+
 export default function Users() {
   const { user: me } = useAuth();
   const { toast, confirm } = useFeedback();
   const [params] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") || "");
   const [query, setQuery] = useState(search);
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(params.get("role") || "");
+  const [editing, setEditing] = useState(null);
   const [status, setStatus] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -155,9 +229,40 @@ export default function Users() {
         title="Users"
         description="Every account on the platform. Only super admins can see this page."
         actions={
-          <Button variant="primary" icon={UserPlus} onClick={() => setCreating(true)}>
-            Add user
-          </Button>
+          <>
+            <Button
+              icon={Download}
+              disabled={!data.length}
+              onClick={() =>
+                exportToCsv(
+                  "ridgeline-users",
+                  data.map((u) => ({
+                    name: u.name,
+                    email: u.email,
+                    role: ROLE_LABEL[roleOf(u)],
+                    status: u.isActive !== false ? "Active" : "Deactivated",
+                    courses: u.role === "admin" ? u.courseCount : "",
+                    joined: fmtDate(u.createdAt),
+                    lastActive: fmtDate(u.lastLogin),
+                  })),
+                  [
+                    { key: "name", label: "Name" },
+                    { key: "email", label: "Email" },
+                    { key: "role", label: "Role" },
+                    { key: "status", label: "Status" },
+                    { key: "courses", label: "Courses owned" },
+                    { key: "joined", label: "Joined" },
+                    { key: "lastActive", label: "Last active" },
+                  ]
+                )
+              }
+            >
+              Export CSV
+            </Button>
+            <Button variant="primary" icon={UserPlus} onClick={() => setCreating(true)}>
+              Add user
+            </Button>
+          </>
         }
       />
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -229,6 +334,7 @@ export default function Users() {
                       </Badge>
                     </Td>
                     <Td align="right" className="whitespace-nowrap">
+                      <IconButton icon={Pencil} size={15} label={`Edit ${u.name}`} onClick={() => setEditing(u)} />
                       {!self && (
                         <>
                           <Button size="sm" variant="ghost" onClick={() => toggle(u)}>
@@ -245,6 +351,16 @@ export default function Users() {
           </Table>
         )}
       </div>
+      {editing && (
+        <EditUserDialog
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(u) => {
+            replace(u);
+            setEditing(null);
+          }}
+        />
+      )}
       {creating && (
         <CreateUserDialog
           onClose={() => setCreating(false)}
