@@ -38,7 +38,9 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-if (process.env.NODE_ENV !== "test") app.use(morgan("dev"));
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("dev", { skip: (req) => req.method === "GET" && req.url.startsWith("/api/notifications") }));
+}
 
 // Only public images are served statically. Submission files go through
 // GET /api/submissions/:id/file, which checks who is asking.

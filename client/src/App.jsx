@@ -20,6 +20,7 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { PlatformProvider } from "./context/PlatformContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
 import { FeedbackProvider } from "./components/ui.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AppShell from "./components/AppShell.jsx";
@@ -120,7 +121,8 @@ export default function App() {
       <FeedbackProvider>
         <PlatformProvider>
         <AuthProvider>
-          <BrowserRouter>
+          <NotificationProvider>
+            <BrowserRouter>
             <Routes>
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Home_ />} />
@@ -175,6 +177,7 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </NotificationProvider>
         </AuthProvider>
         </PlatformProvider>
       </FeedbackProvider>

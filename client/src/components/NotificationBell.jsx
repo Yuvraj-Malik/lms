@@ -5,9 +5,10 @@ import { notificationApi } from "../api/endpoints.js";
 import { timeAgo } from "../lib/format.js";
 import { cx } from "./ui.jsx";
 
+import { useNotifications } from "../context/NotificationContext.jsx";
+
 export default function NotificationBell({ placement = "down", align = "auto" }) {
-  const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
+  const { items, unread, load, openItem, markAll, clearAll } = useNotifications();
   const [open, setOpen] = useState(false);
   const [resolvedAlign, setResolvedAlign] = useState(align === "auto" ? "right" : align);
   const box = useRef(null);
@@ -33,22 +34,6 @@ export default function NotificationBell({ placement = "down", align = "auto" })
     }
   }, [open, updateAlign]);
 
-  const load = useCallback(async () => {
-    try {
-      const { data } = await notificationApi.list();
-      setItems(data.notifications || []);
-      setUnread(data.unreadCount || 0);
-    } catch {
-      /* the bell stays quiet if the request fails */
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 45000);
-    return () => clearInterval(t);
-  }, [load]);
-
   useEffect(() => {
     if (!open) return;
     const onDown = (e) => box.current && !box.current.contains(e.target) && setOpen(false);
@@ -61,28 +46,9 @@ export default function NotificationBell({ placement = "down", align = "auto" })
     };
   }, [open]);
 
-  const openItem = async (n) => {
-    if (!n.isRead) {
-      notificationApi.markRead(n._id).catch(() => {});
-      setItems((list) => list.map((x) => (x._id === n._id ? { ...x, isRead: true } : x)));
-      setUnread((u) => Math.max(0, u - 1));
-    }
-    if (n.link) {
-      setOpen(false);
-      navigate(n.link);
-    }
-  };
-
-  const markAll = async () => {
-    await notificationApi.markAllRead().catch(() => {});
-    setItems((list) => list.map((x) => ({ ...x, isRead: true })));
-    setUnread(0);
-  };
-
-  const clearAll = async () => {
-    await notificationApi.clearAll().catch(() => {});
-    setItems([]);
-    setUnread(0);
+  const handleOpenItem = (n) => {
+    setOpen(false);
+    openItem(n, navigate);
   };
 
   return (
@@ -138,7 +104,7 @@ export default function NotificationBell({ placement = "down", align = "auto" })
               items.map((n) => (
                 <button
                   key={n._id}
-                  onClick={() => openItem(n)}
+                  onClick={() => handleOpenItem(n)}
                   className="flex w-full gap-3 border-b border-line px-4 py-3 text-left last:border-0 hover:bg-subtle"
                 >
                   <span className={cx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", n.isRead ? "bg-transparent" : "bg-accent")} />
